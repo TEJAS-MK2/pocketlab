@@ -94,6 +94,7 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Device property editor, drag-and-drop, and link management
 - [x] Subnet calculator, route discovery, simulated DNS/HTTP
 - [x] Guided defensive-networking exercise
+- [x] Regression coverage ensures disconnected route traces cannot complete the route-learning objective
 - [x] Local firewall deny rules and rule effects in ping simulations
 - [x] Routing table inspection and packet-path visualization
 - [ ] Accessibility audit and keyboard alternatives for drag-and-drop

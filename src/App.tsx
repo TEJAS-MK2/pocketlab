@@ -379,7 +379,7 @@ export default function App() {
       } else {
         output.push("No simulated route between those devices.");
       }
-        if (source?.id === "ws-01" && destination?.id === "srv-01" && !missionProgressState.routeDone) {
+        if (path && source?.id === "ws-01" && destination?.id === "srv-01" && !missionProgressState.routeDone) {
           if (!saveMissionProgress({ ...missionProgressState, routeDone: true })) {
             setNotice("Route traced, but guided progress could not be saved locally");
           }

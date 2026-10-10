@@ -42,6 +42,23 @@ test("guided progress follows device edits, persists locally, and supports expor
   expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false });
 });
 
+test("does not award the route objective when the topology has no route", async ({ page }) => {
+  await page.goto("/");
+  const objectives = page.locator(".mission-objective");
+  await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
+  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
+
+  await page.getByRole("button", { name: "Remove link ln-01" }).click();
+  await page.getByRole("button", { name: "Remove link ln-02" }).click();
+  const terminal = page.getByLabel("Virtual terminal command");
+  await terminal.fill("route ws-01 srv-01");
+  await terminal.press("Enter");
+
+  await expect(page.getByText("No simulated route between those devices.", { exact: true })).toBeVisible();
+  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/3 COMPLETE")).toHaveCount(0);
+});
+
 test("searches packet traces and exports a packet-event report", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Run ping simulation" }).click();
