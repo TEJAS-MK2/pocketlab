@@ -40,3 +40,13 @@
 .mission-objective.done strong{color:#a9d9ba}
 .mission-footer{border-top:1px solid var(--border);padding:11px 16px;font-size:9px;line-height:1.5;color:#7f8da1;background:#141a21}
 @media(max-width:720px){.mission-objective{align-items:flex-start;flex-wrap:wrap}.mission-objective>div{flex-basis:calc(100% - 40px)}.mission-objective .secondary-button{margin-left:38px}.mission-progress{font-size:7px}.mission-intro,.mission-objectives{padding-left:12px;padding-right:12px}.mission-footer{padding:10px 12px}}
+
+.firewall-rule-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #282f39}
+.firewall-rule-row:last-child{border-bottom:0}
+.firewall-rule-row>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.firewall-rule-row strong{font-size:9px;color:#cbd5e3;overflow-wrap:anywhere}
+.firewall-rule-row small{font:8px var(--mono);color:#7d8a9d}
+.firewall-toggle{border:1px solid #345646;background:#1b2b24;color:#91d6ad;border-radius:4px;padding:5px 7px;font:8px var(--mono);white-space:nowrap}
+.firewall-toggle:hover{background:#233d30}
+.firewall-toggle.blocked{border-color:#673d45;background:#302125;color:#edaaaa}
+.firewall-toggle.blocked:hover{background:#43272d}
