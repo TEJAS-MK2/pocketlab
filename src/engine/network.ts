@@ -29,6 +29,7 @@ export interface LabSnapshot {
   version: 1;
   devices: LabDevice[];
   links: LabLink[];
+  blockedDeviceIds: string[];
 }
 
 export const starterLab: LabSnapshot = {
@@ -41,7 +42,8 @@ export const starterLab: LabSnapshot = {
   links: [
     { id: "ln-01", from: "ws-01", to: "rt-01" },
     { id: "ln-02", from: "rt-01", to: "srv-01" }
-  ]
+  ],
+  blockedDeviceIds: []
 };
 
 export function isValidIPv4(value: string): boolean {
@@ -83,7 +85,8 @@ export function simulatePing(
   links: LabLink[],
   sourceId: string,
   destinationId: string,
-  sequence = 1
+  sequence = 1,
+  blockedDeviceIds: string[] = []
 ): PingResult {
   const source = devices.find((device) => device.id === sourceId);
   const destination = devices.find((device) => device.id === destinationId);
@@ -98,6 +101,15 @@ export function simulatePing(
       success: true,
       event: { id: `evt-${sequence}`, time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "delivered", message },
       output: [`PING ${destination.ip} from ${source.ip}`, "Reply from local interface: 0.2 ms", "1 packet transmitted, 1 received."]
+    };
+  }
+
+  if (blockedDeviceIds.includes(destination.id)) {
+    const message = "Blocked by simulated firewall policy for " + destination.name + ".";
+    return {
+      success: false,
+      event: { id: "evt-" + sequence, time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "dropped", message },
+      output: ["PING " + destination.ip + " from " + source.ip, "Firewall policy denied the simulated packet.", "1 packet transmitted, 0 received, policy drop."]
     };
   }
 
@@ -152,7 +164,12 @@ export function validateLab(value: unknown): LabSnapshot {
     linkIds.add(link.id);
   }
 
-  return { version: 1, devices: candidate.devices, links: candidate.links };
+  const blockedDeviceIds = candidate.blockedDeviceIds ?? [];
+  if (!Array.isArray(blockedDeviceIds) || blockedDeviceIds.some((id) => typeof id !== "string" || !ids.has(id)) ||
+      new Set(blockedDeviceIds).size !== blockedDeviceIds.length) {
+    throw new Error("Lab contains an invalid firewall rule.");
+  }
+  return { version: 1, devices: candidate.devices, links: candidate.links, blockedDeviceIds };
 }
 
 export function findPath(devices: LabDevice[], links: LabLink[], sourceId: string, destinationId: string): string[] | null {
