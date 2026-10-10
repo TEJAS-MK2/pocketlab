@@ -28,7 +28,7 @@ export default function App() {
   const [terminal, setTerminal] = useState<string[]>(["PacketLab terminal v0.1.0", "Simulation environment ready.", "Type help to view available commands."]);
   const [command, setCommand] = useState("");
   const [selectedSource, setSelectedSource] = useState(() => lab.devices[0]?.id ?? "");
-  const [selectedDestination, setSelectedDestination] = useState(() => lab.devices.find((device) => device.id !== lab.devices[0]?.id)?.id ?? lab.devices[0]?.id ?? "");
+  const [selectedDestination, setSelectedDestination] = useState(() => lab.devices.find((device) => device.kind === "server" && device.id !== lab.devices[0]?.id)?.id ?? lab.devices.find((device) => device.id !== lab.devices[0]?.id)?.id ?? lab.devices[0]?.id ?? "");
   const [notice, setNotice] = useState("Starter topology loaded");
   const [activeTab, setActiveTab] = useState<"topology" | "packets">("topology");
   const [filter, setFilter] = useState("all");
