@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   type DeviceKind, type LabDevice, type LabPacketEvent, type LabSnapshot,
-  calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab
+  MAX_LAB_DEVICES, MAX_LAB_LINKS, calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
 
 const STORAGE_KEY = "packetlab.workspace.v1";
@@ -87,8 +87,8 @@ export default function App() {
   }
 
   function addDevice(kind: DeviceKind) {
-    if (lab.devices.length >= 200) {
-      setNotice("This lab has reached the 200-device limit.");
+    if (lab.devices.length >= MAX_LAB_DEVICES) {
+      setNotice(`This lab has reached the ${MAX_LAB_DEVICES}-device limit.`);
       return;
     }
     const usedIPs = new Set(lab.devices.map((device) => device.ip));
@@ -219,6 +219,10 @@ export default function App() {
       (link.to === selectedSource && link.from === selectedDestination)
     );
     if (exists) { setNotice("Those devices are already connected"); return; }
+    if (lab.links.length >= MAX_LAB_LINKS) {
+      setNotice(`This lab has reached the ${MAX_LAB_LINKS.toLocaleString("en-US")}-link limit.`);
+      return;
+    }
     persist({ ...lab, links: [...lab.links, { id: `ln-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`, from: selectedSource, to: selectedDestination }] });
     setNotice("Network link created");
   }

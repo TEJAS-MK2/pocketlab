@@ -27,6 +27,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Simulated DNS and HTTP services
 - [x] Simulated directly-connected routing table and hop-by-hop path highlighting
 - [x] Local firewall deny/allow policy that changes simulated ping outcomes
+- [x] Deterministic ping TTL and latency estimates derived from the selected shortest topology path
 - [ ] Rule-hit counters and more advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
 
@@ -43,6 +44,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 
 ## Phase 3 — Platform hardening
 
+- [x] Import validation for blank/unsafe IDs, control characters, duplicate records, and excessive link counts
 - [ ] Import fuzz tests and malformed-file corpus
 - [ ] Performance budgets and large-topology stress tests
 - [ ] Content Security Policy review and dependency audit automation improvements

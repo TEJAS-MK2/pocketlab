@@ -8,6 +8,10 @@ describe("IPv4 validation", () => {
     expect(isValidIPv4("255.255.255.255")).toBe(true);
   });
 
+  it("returns false for a non-string runtime input", () => {
+    expect(isValidIPv4(null as unknown as string)).toBe(false);
+  });
+
   it("rejects malformed and non-canonical addresses", () => {
     for (const ip of ["256.1.1.1", "192.168.1", "1.2.3.04", "1.2.-1.4", "host.local"]) {
       expect(isValidIPv4(ip)).toBe(false);
@@ -25,6 +29,17 @@ describe("network connectivity simulation", () => {
     expect(result.success).toBe(true);
     expect(result.event.status).toBe("delivered");
     expect(result.output.join("\n")).toContain("0% packet loss");
+  });
+
+  it("reports route-aware TTL and deterministic per-hop latency", () => {
+    const multiHop = simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01");
+    expect(multiHop.output.join("\\n")).toContain("ttl=62 time=2.4 ms");
+
+    const direct = simulatePing(starterLab.devices, [
+      ...starterLab.links,
+      { id: "ln-direct", from: "ws-01", to: "srv-01" }
+    ], "ws-01", "srv-01");
+    expect(direct.output.join("\\n")).toContain("ttl=63 time=1.2 ms");
   });
 
   it("drops a ping when the path is disconnected", () => {
@@ -137,6 +152,36 @@ describe("lab file validation", () => {
       links: []
     };
     expect(() => validateLab(invalid)).toThrow("Lab contains duplicate device IDs.");
+  });
+
+  it("rejects blank or terminal-unsafe IDs and names with control characters", () => {
+    expect(() => validateLab({ version: 1, devices: [{ ...starterLab.devices[0], id: " " }], links: [] }))
+      .toThrow("invalid device");
+    expect(() => validateLab({ version: 1, devices: [{ ...starterLab.devices[0], id: "bad id" }], links: [] }))
+      .toThrow("invalid device");
+    expect(() => validateLab({ version: 1, devices: [{ ...starterLab.devices[0], name: "  " }], links: [] }))
+      .toThrow("invalid device");
+    expect(() => validateLab({ version: 1, devices: [{ ...starterLab.devices[0], name: ["HOST", "INJECTED"].join(String.fromCharCode(10)) }], links: [] }))
+      .toThrow("invalid device");
+    expect(() => validateLab({ version: 1, devices: starterLab.devices, links: [{ id: "bad id", from: "ws-01", to: "rt-01" }] }))
+      .toThrow("invalid link");
+  });
+
+  it("trims imported device names", () => {
+    const imported = validateLab({
+      version: 1,
+      devices: [{ ...starterLab.devices[0], name: "  LAB-HOST  " }],
+      links: []
+    });
+    expect(imported.devices[0].name).toBe("LAB-HOST");
+  });
+
+  it("rejects workspaces with excessive link counts", () => {
+    expect(() => validateLab({
+      version: 1,
+      devices: starterLab.devices,
+      links: Array.from({ length: 2001 }, (_, index) => ({ id: `link-${index}`, from: "ws-01", to: "rt-01" }))
+    })).toThrow("2,000 links");
   });
 
   it("rejects links that point to missing devices", () => {

@@ -25,6 +25,9 @@ export interface LabPacketEvent {
   message: string;
 }
 
+export const MAX_LAB_DEVICES = 200;
+export const MAX_LAB_LINKS = 2000;
+
 export interface LabSnapshot {
   version: 1;
   devices: LabDevice[];
@@ -47,6 +50,7 @@ export const starterLab: LabSnapshot = {
 };
 
 export function isValidIPv4(value: string): boolean {
+  if (typeof value !== "string") return false;
   const parts = value.split(".");
   if (parts.length !== 4) return false;
   return parts.every((part) => {
@@ -118,7 +122,8 @@ export function simulatePing(
     };
   }
 
-  const reachable = connectedComponent(source.id, links).has(destination.id);
+  const route = findPath(devices, links, source.id, destination.id);
+  const reachable = route !== null;
   const message = reachable
     ? `ICMP echo reply received from ${destination.ip}`
     : `No route to host ${destination.ip}; packet dropped by the simulated network.`;
@@ -135,7 +140,7 @@ export function simulatePing(
       message
     },
     output: reachable
-      ? [`PING ${destination.ip} from ${source.ip}`, `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=63 time=2.4 ms`, "1 packet transmitted, 1 received, 0% packet loss."]
+      ? [`PING ${destination.ip} from ${source.ip}`, `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=${Math.max(1, 64 - ((route?.length ?? 1) - 1))} time=${Math.max(1, ((route?.length ?? 1) - 1) * 1.2).toFixed(1)} ms`, "1 packet transmitted, 1 received, 0% packet loss."]
       : [`PING ${destination.ip} from ${source.ip}`, "Request timed out.", "1 packet transmitted, 0 received, 100% packet loss."]
   };
 }
@@ -148,15 +153,18 @@ export function validateLab(value: unknown): LabSnapshot {
   if (candidate.version !== 1 || !Array.isArray(candidate.devices) || !Array.isArray(candidate.links)) {
     throw new Error("Unsupported lab format. Expected PacketLab version 1.");
   }
-  if (candidate.devices.length > 200) {
-    throw new Error("Lab may contain at most 200 devices.");
+  if (candidate.devices.length > MAX_LAB_DEVICES) {
+    throw new Error(`Lab may contain at most ${MAX_LAB_DEVICES} devices.`);
+  }
+  if (candidate.links.length > MAX_LAB_LINKS) {
+    throw new Error(`Lab may contain at most ${MAX_LAB_LINKS.toLocaleString("en-US")} links.`);
   }
 
   const ids = new Set<string>();
   const ips = new Set<string>();
   for (const device of candidate.devices) {
-    if (!device || typeof device.id !== "string" || device.id.length > 64 ||
-        typeof device.name !== "string" || device.name.length > 64 ||
+    if (!device || typeof device.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(device.id) ||
+        typeof device.name !== "string" || device.name.trim().length === 0 || device.name.length > 64 || /[\u0000-\u001f\u007f]/.test(device.name) ||
         !["workstation", "router", "server"].includes(String(device.kind)) ||
         typeof device.ip !== "string" || !isValidIPv4(device.ip) ||
         !Number.isFinite(device.x) || !Number.isFinite(device.y) || device.x < 0 || device.x > 100 || device.y < 0 || device.y > 100) {
@@ -171,7 +179,7 @@ export function validateLab(value: unknown): LabSnapshot {
   const linkIds = new Set<string>();
   const connections = new Set<string>();
   for (const link of candidate.links) {
-    if (!link || typeof link.id !== "string" || link.id.length > 64 ||
+    if (!link || typeof link.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(link.id) ||
         typeof link.from !== "string" || typeof link.to !== "string" || link.from === link.to ||
         !ids.has(link.from) || !ids.has(link.to) || linkIds.has(link.id)) {
       throw new Error("Lab contains an invalid link.");
@@ -192,7 +200,7 @@ export function validateLab(value: unknown): LabSnapshot {
   return {
     version: 1,
     devices: candidate.devices.map((device) => ({
-      id: device.id, name: device.name, kind: device.kind, ip: device.ip, x: device.x, y: device.y
+      id: device.id, name: device.name.trim(), kind: device.kind, ip: device.ip, x: device.x, y: device.y
     })),
     links: candidate.links.map((link) => ({ id: link.id, from: link.from, to: link.to })),
     blockedDeviceIds: [...blockedDeviceIds]

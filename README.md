@@ -11,12 +11,12 @@ PacketLab is an educational environment for building virtual network topologies,
 - An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, `route`, `dns`, `http`, and `clear`.
 - Packet event log with delivered/dropped filters.
 - Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and link management.
-- IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, and simulated DNS/HTTP responses.
+- IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, deterministic simulated ping TTL/latency based on the shortest topology path, and simulated DNS/HTTP responses.
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
 - Local firewall deny rules that persist with a lab and affect simulated ping results.
 - A guided connectivity exercise with locally tracked progress.
 - Local workspace persistence using browser storage.
-- Validated JSON import/export with a 1 MB import limit.
+- Validated JSON import/export with a 1 MB import limit, non-empty command-safe IDs, control-character rejection, and model limits of 200 devices / 2,000 links.
 - Offline app-shell caching after the first successful online visit.
 - Installed-app icons for standard, maskable, and Apple touch launchers.
 - Responsive interface, unit tests, dependency audit, and CI.
@@ -94,7 +94,7 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Subnet calculator, route discovery, simulated DNS/HTTP
 - [x] Guided defensive-networking exercise
 - [x] Local firewall deny rules and rule effects in ping simulations
-- [ ] Routing table inspection and packet-path visualization
+- [x] Routing table inspection and packet-path visualization
 - [ ] Accessibility audit and keyboard alternatives for drag-and-drop
 - [ ] Storage migration and backup recovery tests
 
