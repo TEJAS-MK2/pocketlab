@@ -65,3 +65,27 @@ test("reopens the built app shell when the browser goes offline", async ({ page,
   await expect(page.getByRole("heading", { name: "Network studio" })).toBeVisible();
   await context.setOffline(false);
 });
+
+
+test("moves a device and persists its topology position", async ({ page }) => {
+  await page.goto("/");
+  const device = page.getByRole("button", { name: "Select WORKSTATION-01" });
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.workspace.v1")!).devices[0].x as number);
+  const box = await device.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width / 2 + 70, box!.y + box!.height / 2 + 20, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.workspace.v1")!).devices[0].x as number)).toBeGreaterThan(before + 5);
+});
+
+test("firewall deny rules drop simulated traffic and can be lifted", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Allowing" }).nth(2).click();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
+  await page.getByRole("button", { name: "Blocked" }).click();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await expect(page.getByText(/ICMP echo reply received from 192\.168\.10\.20/)).toBeVisible();
+});
