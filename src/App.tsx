@@ -38,6 +38,7 @@ export default function App() {
   const [editName, setEditName] = useState("");
   const [editIp, setEditIp] = useState("");
   const [subnetInput, setSubnetInput] = useState("192.168.10.0/24");
+  const [missionSubnetDone, setMissionSubnetDone] = useState(false);
   const subnet = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   const selected = lab.devices.find((device) => device.id === selectedSource);
@@ -59,6 +60,9 @@ export default function App() {
     return reachable.size;
   }, [lab, selected]);
   const visibleEvents = events.filter((event) => filter === "all" || event.status === filter);
+  const missionPingDone = events.some((event) => event.protocol === "ICMP" && event.status === "delivered" && event.source === "192.168.10.10" && event.destination === "192.168.10.20");
+  const missionRouteDone = terminal.some((line) => line.startsWith("Route: WORKSTATION-01 -> EDGE-ROUTER -> WEB-SERVER"));
+  const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone].filter(Boolean).length;
 
   function persist(next: LabSnapshot) {
     setLab(next);
@@ -300,6 +304,17 @@ export default function App() {
             <div className="terminal-output" role="log" aria-live="polite">{terminal.map((line, index) => <div key={`${index}-${line}`} className={line.startsWith("$") ? "terminal-line command-line" : "terminal-line"}>{line}</div>)}</div>
             <form className="terminal-input" onSubmit={(event) => { event.preventDefault(); runCommand(); }}><span className="prompt-symbol">›</span><input value={command} onChange={(event) => setCommand(event.target.value)} placeholder="Type a command… (try help)" aria-label="Virtual terminal command" autoComplete="off" /><button type="submit" title="Run command"><ArrowRight size={17} /></button></form>
             <div className="quick-commands"><span>QUICK RUN</span><button onClick={() => runCommand("devices")}>devices</button><button onClick={() => runCommand("ping ws-01 srv-01")}>ping ws-01 srv-01</button><button onClick={() => runCommand("route ws-01 srv-01")}>route ws-01 srv-01</button><button onClick={() => runCommand("dns srv-01")}>dns srv-01</button><button onClick={() => runCommand("http srv-01")}>http srv-01</button><button onClick={() => runCommand("help")}>help</button></div>
+          </section>
+
+          <section className="panel mission-panel">
+            <div className="panel-header"><div><span className="panel-kicker">03 / GUIDED EXERCISE</span><h2><ShieldCheck size={16} /> First response: connectivity</h2></div><span className="mission-progress">{missionProgress}/3 COMPLETE</span></div>
+            <p className="mission-intro">Work through a small defensive-networking checklist. Everything runs inside the simulator; no real hosts are contacted.</p>
+            <div className="mission-objectives">
+              <div className={missionPingDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionPingDone ? <Check size={13} /> : "01"}</span><div><strong>Confirm end-to-end connectivity</strong><small>Send a simulated ICMP echo from the workstation to the web server.</small></div><button className="secondary-button" onClick={() => runPing("ws-01", "srv-01")}>{missionPingDone ? "Run again" : "Run ping"}</button></div>
+              <div className={missionRouteDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionRouteDone ? <Check size={13} /> : "02"}</span><div><strong>Explain the packet path</strong><small>Trace the route through the virtual edge router.</small></div><button className="secondary-button" onClick={() => runCommand("route ws-01 srv-01")}>{missionRouteDone ? "Trace again" : "Trace route"}</button></div>
+              <div className={missionSubnetDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionSubnetDone ? <Check size={13} /> : "03"}</span><div><strong>Check the LAN subnet</strong><small>Verify a /24 has a 255.255.255.0 mask and 254 usable host addresses.</small></div><button className="secondary-button" onClick={() => { if (subnet?.prefix === 24 && subnet.netmask === "255.255.255.0" && subnet.usableHosts === 254) { setMissionSubnetDone(true); setNotice("Subnet objective complete"); } else { setMissionSubnetDone(false); setNotice("Set a valid /24 subnet with 254 usable hosts first"); } }}>{missionSubnetDone ? "Verified" : "Verify subnet"}</button></div>
+            </div>
+            <div className="mission-footer">{missionProgress === 3 ? "Exercise complete — you checked connectivity, route discovery, and subnet capacity." : "Hint: use the route and subnet tools to explain why a packet can or cannot reach its destination."}</div>
           </section>
         </main>
 
