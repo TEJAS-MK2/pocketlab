@@ -183,13 +183,18 @@ test("keeps the main workflow within a mobile viewport", async ({ page }) => {
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
 });
 
-test("firewall deny rules drop simulated traffic and can be lifted", async ({ page }) => {
+test("firewall deny rules drop simulated traffic, count hits, and can be lifted", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Allowing" }).nth(2).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
   await page.getByRole("button", { name: /Overview/ }).click();
+  await expect(page.getByText("1 logged hit", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Blocked" }).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
-  await expect(page.getByText(/ICMP echo reply received from 192\.168\.10\.20/)).toBeVisible();
-});
+  await expect(page.getByText(/ICMP echo reply received from 192[.]168[.]10[.]20/)).toBeVisible();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await page.getByRole("button", { name: /Overview/ }).click();
+  await expect(page.getByText("0 logged hits", { exact: true })).toBeVisible();
+});;

@@ -30,7 +30,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Simulated directly-connected routing table and hop-by-hop path highlighting
 - [x] Local firewall deny/allow policy that changes simulated ping outcomes
 - [x] Deterministic ping TTL and latency estimates derived from the selected shortest topology path
-- [ ] Rule-hit counters and more advanced policy matching
+- [x] Firewall hit counts derived from retained local packet events
+- [ ] More advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
 
 ## Phase 2 — Guided learning
