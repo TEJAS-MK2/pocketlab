@@ -12,6 +12,7 @@ PacketLab is an educational environment for building virtual network topologies,
 - Packet event log with delivered/dropped filters.
 - Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and link management.
 - IPv4 CIDR subnet calculator, shortest-path route discovery, and simulated DNS/HTTP responses.
+- Local firewall deny rules that persist with a lab and affect simulated ping results.
 - A guided connectivity exercise with locally tracked progress.
 - Local workspace persistence using browser storage.
 - Validated JSON import/export with a 1 MB import limit.
@@ -86,7 +87,8 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Device property editor, drag-and-drop, and link management
 - [x] Subnet calculator, route discovery, simulated DNS/HTTP
 - [x] Guided defensive-networking exercise
-- [ ] Firewall rules, routing table inspection, and packet-path visualization
+- [x] Local firewall deny rules and rule effects in ping simulations
+- [ ] Routing table inspection and packet-path visualization
 - [ ] Accessibility audit and keyboard alternatives for drag-and-drop
 - [ ] Storage migration and backup recovery tests
 
