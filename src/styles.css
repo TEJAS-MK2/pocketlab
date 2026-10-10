@@ -4,3 +4,24 @@
 @media(max-width:1150px){.workspace{grid-template-columns:190px minmax(350px,1fr)}.inspector{grid-column:2;border-left:0;border-top:1px solid var(--border);display:grid;grid-template-columns:220px minmax(0,1fr);align-content:start}.inspector-header{grid-column:1/-1;padding:16px}.inspector-tabs{grid-column:1/-1}.inspector-content{padding:0 15px}.inspector-footer{grid-column:1/-1}.inspector-content:has(.inspector-block){display:grid;grid-template-columns:1fr 1fr;gap:0 22px}.inspector-content:has(.inspector-block) .help-block{grid-column:1/-1}.metrics-row{grid-template-columns:repeat(2,minmax(0,1fr))}.main-area{padding:22px 20px}}
 @media(max-width:720px){.topbar{padding:0 12px;height:56px}.topbar-center{display:none}.topbar-actions{gap:5px}.local-status{font-size:0;gap:0}.local-status svg{width:17px;height:17px}.brand{font-size:16px}.version{display:none}.workspace{display:flex;flex-direction:column;min-height:0}.sidebar{border-right:0;border-bottom:1px solid var(--border);padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}.sidebar>.section-label:first-child,.sidebar>.nav-item,.sidebar>.side-divider,.sidebar>.section-heading,.sidebar>.device-list,.sidebar>.section-label,.sidebar>.add-row,.sidebar>.sidebar-bottom{grid-column:1/-1}.sidebar>.section-label:first-child{padding-bottom:5px}.sidebar>.nav-item{margin:0}.sidebar>.side-divider{margin:8px 0}.sidebar>.section-heading{margin:2px 0 4px}.device-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.device-row{min-width:0}.sidebar>.add-row{display:none}.sidebar-bottom{display:none}.main-area{padding:19px 12px 24px}.page-heading{align-items:flex-start;flex-direction:column;margin-bottom:16px}.page-heading h1{font-size:24px}.heading-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.heading-actions button{width:100%}.metrics-row{gap:7px}.metric{padding:10px 8px;gap:7px}.metric-icon{width:28px;height:28px}.metric>div>span{font-size:7px}.metric strong{font-size:17px}.topology-canvas{height:290px}.canvas-device{min-width:95px;padding:7px 6px}.canvas-device strong{font-size:7px}.canvas-device small{font-size:8px}.topology-footer{font-size:8px}.topology-footer>span:last-child{max-width:50%;text-align:right}.inspector{display:flex;border-top:1px solid var(--border)}.inspector-header{padding:18px 14px 12px}.inspector-tabs{padding:0 14px}.inspector-content{padding:0 14px}.inspector-content:has(.inspector-block){display:block}.inspector-footer{padding:12px 14px}.app-footer{height:auto;min-height:34px;padding:10px 12px;flex-wrap:wrap;font-size:7px}.app-footer>span:last-child{font-size:7px}.panel-header{padding:11px 12px}.canvas-legend{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* PacketLab topology editor, property controls, and networking tools */
+.canvas-device{cursor:grab;user-select:none;-webkit-user-select:none}
+.canvas-device:active{cursor:grabbing}
+.property-input{width:100%;height:34px;padding:0 9px;border:1px solid #343d4a;border-radius:5px;background:#1b2029;color:#d7deea;font-size:10px;margin-bottom:12px;min-width:0}
+.property-input:focus{border-color:#6fa4f6;outline:2px solid #6fa4f633;outline-offset:1px}
+.device-editor{margin-top:17px;padding-top:15px;border-top:1px solid var(--border)}
+.property-actions{display:flex;gap:7px;align-items:center}
+.property-actions .secondary-button,.property-actions .danger-button{flex:1}
+.danger-button{height:33px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:6px;padding:0 10px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid #673d45;background:#2d2024;color:#efb0b0}
+.danger-button:hover{background:#42262c;border-color:#8b4b56}
+.link-editor-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #282f39}
+.link-editor-row:last-child{border-bottom:0}
+.link-editor-row>span{display:flex;align-items:center;gap:5px;min-width:0;font:9px var(--mono);color:#aab8cb;overflow-wrap:anywhere}
+.link-editor-row>span svg{flex-shrink:0;color:#789ac5}
+.link-editor-row .tiny-icon{flex-shrink:0;width:26px;height:26px}
+.subnet-results{margin-top:14px}
+.subnet-results strong{font-size:8px;overflow-wrap:anywhere;text-align:right}
+.empty-state.compact{min-height:55px;font-size:9px}
+@media(max-width:1150px){.inspector-content:has(.inspector-block){display:block}}
+@media(max-width:720px){.property-actions{display:grid;grid-template-columns:1fr 1fr}.link-editor-row>span{font-size:8px}.subnet-results strong{font-size:8px}}
