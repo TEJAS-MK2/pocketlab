@@ -15,6 +15,24 @@ test("loads the lab, simulates ping, and shows the packet event", async ({ page 
   await expect(pathTrace.nth(2)).toContainText("WEB-SERVER");
 });
 
+test("searches packet traces and exports a packet-event report", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  const search = page.getByLabel("Filter packet events");
+  await search.fill("edge-router");
+  await expect(page.locator(".packet-event")).toHaveCount(1);
+  await expect(page.locator(".packet-event")).toContainText("EDGE-ROUTER");
+  await search.fill("no-such-device");
+  await expect(page.getByText("No matching events")).toBeVisible();
+  await search.fill("WEB-SERVER");
+  await expect(page.locator(".packet-event")).toContainText("WEB-SERVER");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("packetlab-packet-events.json");
+});
+
 test("supports simulated route, DNS, and HTTP terminal commands", async ({ page }) => {
   await page.goto("/");
   const terminal = page.getByLabel("Virtual terminal command");

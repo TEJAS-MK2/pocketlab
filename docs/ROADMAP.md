@@ -38,7 +38,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] Structured beginner-to-advanced learning paths
 - [x] First guided connectivity exercise with locally derived objective progress
 - [ ] More blue-team missions, evidence collection, and scoring
-- [ ] Event timeline, filters, and exportable reports
+- [x] Searchable event log with delivered/dropped filters, historical hop snapshots, and exportable packet-event JSON reports
 - [ ] Explainable simulations and deterministic scenario replay
 - [ ] Progress stored locally with reset/export controls
 - [x] Keyboard topology movement, terminal log announcements, focus indicators, and reduced-motion support

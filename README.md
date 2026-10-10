@@ -9,7 +9,7 @@ PacketLab is an educational environment for building virtual network topologies,
 - Interactive topology view with virtual workstations, routers, servers, and links.
 - Deterministic, in-memory link connectivity and simulated ICMP ping.
 - An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, `route`, `dns`, `http`, and `clear`.
-- Packet event log with delivered/dropped filters.
+- Searchable packet event log with delivered/dropped filters, per-hop route snapshots, and local JSON report export.
 - Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and link management. Device names reject control characters and imported identifiers are command-safe.
 - IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, deterministic simulated ping TTL/latency based on the shortest topology path, and simulated DNS/HTTP responses.
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
