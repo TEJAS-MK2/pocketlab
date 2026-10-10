@@ -10,39 +10,11 @@ import {
   MAX_LAB_DEVICES, MAX_LAB_LINKS, calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
 import {
-  EMPTY_MISSION_PROGRESS, INVALID_BACKUP_KEY, INVALID_MISSION_PROGRESS_KEY,
-  MISSION_PROGRESS_KEY, STORAGE_KEY, readMissionProgress, readSavedLab,
-  type MissionProgress
+  EMPTY_MISSION_PROGRESS, MISSION_PROGRESS_KEY, STORAGE_KEY,
+  readMissionProgress, readSavedLab, type MissionProgress
 } from "./engine/persistence";
 
 const deviceIcon = (kind: DeviceKind) => kind === "router" ? RadioTower : kind === "server" ? Server : Laptop;
-
-function readSavedLab(): { lab: LabSnapshot; notice: string } {
-  let raw: string | null = null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return { lab: starterLab, notice: "Starter topology loaded" };
-    return { lab: validateLab(JSON.parse(raw)), notice: "Saved lab restored from this device" };
-  } catch {
-    let backedUp = false;
-    if (raw !== null) {
-      try {
-        localStorage.setItem(INVALID_BACKUP_KEY, raw);
-        backedUp = true;
-      } catch {
-        // Preserve the starter lab if storage is unavailable; never overwrite the invalid original here.
-      }
-    }
-    return {
-      lab: starterLab,
-      notice: raw === null
-        ? "Local storage unavailable — starter topology loaded"
-        : backedUp
-          ? `Saved lab was invalid; raw data backed up under ${INVALID_BACKUP_KEY}`
-          : "Saved lab was invalid; raw backup could not be written"
-    };
-  }
-}
 
 export default function App() {
   const [startup] = useState(() => readSavedLab(localStorage));
