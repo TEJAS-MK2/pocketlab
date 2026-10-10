@@ -370,6 +370,7 @@ test("a virtual link can be disabled and restored without deleting the topology"
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await page.getByRole("button", { name: /Packets/ }).click();
   await expect(page.getByLabel("Simulation decision log").getByText(/Link ln-01 is administratively down/)).toBeVisible();
+  await page.getByRole("button", { name: /Overview/ }).click();
   await page.getByRole("button", { name: "Bring link ln-01 up" }).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await expect(page.getByText("Simulation completed · packet delivered")).toBeVisible();
