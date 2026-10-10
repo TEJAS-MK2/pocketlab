@@ -8,10 +8,12 @@ PacketLab is a browser-first cybersecurity learning simulator. The core applicat
 
 - **UI:** React + TypeScript, with a responsive three-column workspace.
 - **Build:** Vite; static output in `dist/`.
-- **Simulation domain:** pure functions in `src/engine/network.ts` model IPv4 validation, graph reachability, ping outcomes, and import validation.
+- **Simulation domain:** pure functions in `src/engine/network.ts` model IPv4 validation, graph reachability, shortest-path route discovery, CIDR subnet calculations, ping outcomes, and import validation.
+- **Topology editing:** device properties, links, and positions are edited in the UI and saved to the local workspace. Drag interactions are pointer-based for touch and mouse input.
+- **Learning:** the first guided exercise derives progress from simulated ping/route evidence and explicit subnet verification; progress is kept in memory for the current session.
 - **Persistence:** versioned localStorage key `packetlab.workspace.v1`. Exported JSON is the portable backup.
 - **Offline shell:** a same-origin service worker precaches the HTML shell, manifest, icon, and built JS/CSS assets, then uses network-first navigation with a cached fallback.
-- **Tests:** Vitest unit tests cover address validation, graph connectivity, ping success/failure, and imported lab validation.
+- **Tests:** Vitest unit tests cover address validation, graph connectivity, route discovery, CIDR calculations, ping success/failure, and imported lab validation. Playwright browser tests exercise the production build, local persistence, terminal tools, import validation, and offline shell startup.
 - **Automation:** GitHub Actions typechecks, tests, audits dependencies, builds, and deploys GitHub Pages.
 - **No backend:** no cloud authentication, database, telemetry, or API key is required.
 
@@ -62,6 +64,8 @@ Before merging a change, run:
 ```bash
 npm run typecheck
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm audit --audit-level=high
 npm run build
 ```
