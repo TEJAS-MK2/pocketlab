@@ -165,6 +165,29 @@ test("moves a device and persists its topology position", async ({ page }) => {
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.workspace.v1")!).devices[0].x as number)).toBeGreaterThan(before + 5);
 });
 
+test("keeps buttons and form fields accessible by name and announces notices", async ({ page }) => {
+  await page.goto("/");
+  const unnamedButtons = await page.locator("button").evaluateAll((buttons) =>
+    buttons.filter((button) =>
+      !button.getAttribute("aria-label")?.trim() &&
+      !button.getAttribute("aria-labelledby")?.trim() &&
+      !button.innerText.trim()
+    ).map((button) => button.outerHTML)
+  );
+  expect(unnamedButtons).toEqual([]);
+
+  const unlabeledInputs = await page.locator('input:not([type="file"]):not([type="hidden"])').evaluateAll((inputs) =>
+    inputs.filter((input) =>
+      !input.getAttribute("aria-label")?.trim() &&
+      !input.getAttribute("aria-labelledby")?.trim() &&
+      !(input.labels && input.labels.length > 0)
+    ).map((input) => input.outerHTML)
+  );
+  expect(unlabeledInputs).toEqual([]);
+  await expect(page.locator('.inspector-footer [role="status"]')).toHaveAttribute("aria-live", "polite");
+  await expect(page.locator('.inspector-footer [role="status"]')).toHaveAttribute("aria-atomic", "true");
+});
+
 test("moves a device with the keyboard and persists the new position", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Reset lab" }).click();

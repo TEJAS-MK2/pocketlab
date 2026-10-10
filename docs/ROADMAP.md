@@ -16,7 +16,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Add Playwright browser-level regression and offline startup tests (verified green in GitHub Actions)
 - [x] Verify corrupted-storage backup, malformed-import preservation, keyboard topology movement, ping-path highlighting, and mobile overflow behavior
 - [x] Add keyboard controls for topology positioning (arrow keys; Shift for larger moves)
-- [ ] Complete a full accessibility audit
+- [x] Add Playwright checks for accessible button/form names and polite status announcements
+- [ ] Complete a full screen-reader and browser accessibility audit
 - [x] Require confirmation before replacing a modified local workspace; test cancelling and accepting the reset
 - [ ] Add storage migrations and autosave recovery tests
 
