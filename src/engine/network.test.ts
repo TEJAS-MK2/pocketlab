@@ -111,3 +111,22 @@ describe("CIDR subnet calculator", () => {
     }
   });
 });
+
+
+describe("simulated firewall rules", () => {
+  it("drops a reachable ping when the destination is blocked", () => {
+    const result = simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01", 1, ["srv-01"]);
+    expect(result.success).toBe(false);
+    expect(result.event.status).toBe("dropped");
+    expect(result.event.message).toContain("simulated firewall policy");
+  });
+
+  it("keeps old version-one imports compatible without firewall rules", () => {
+    const { blockedDeviceIds: _blockedDeviceIds, ...oldFormat } = starterLab;
+    expect(validateLab(oldFormat).blockedDeviceIds).toEqual([]);
+  });
+
+  it("rejects firewall rules referencing missing devices", () => {
+    expect(() => validateLab({ ...starterLab, blockedDeviceIds: ["not-a-device"] })).toThrow("invalid firewall rule");
+  });
+});
