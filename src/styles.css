@@ -201,3 +201,8 @@ h1{font-size:25px;letter-spacing:-.5px;font-weight:650;color:#1e2d38}
 
 .mission-progress-actions{display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid #e1e7eb}
 .mission-progress-actions .text-button{min-height:28px}
+
+
+.skip-link{position:absolute;z-index:10000;top:-60px;left:12px;padding:9px 12px;background:#fff;color:#203746;border:2px solid #c27b22;border-radius:3px;font-size:12px;font-weight:700;text-decoration:none}
+.skip-link:focus{top:10px;outline:2px solid #203746;outline-offset:2px}
+#main-content:focus{outline:none}

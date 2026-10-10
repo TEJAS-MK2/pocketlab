@@ -200,6 +200,13 @@ test("moves a device and persists its topology position", async ({ page }) => {
 
 test("keeps buttons and form fields accessible by name and announces notices", async ({ page }) => {
   await page.goto("/");
+  await page.keyboard.press("Tab");
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skipLink).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#main-content$/);
+  await expect(page.locator("#main-content")).toBeVisible();
+
   const unnamedButtons = await page.locator("button").evaluateAll((buttons) =>
     buttons.filter((button) =>
       !button.getAttribute("aria-label")?.trim() &&

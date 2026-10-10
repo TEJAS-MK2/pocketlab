@@ -483,6 +483,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="topbar">
         <div className="brand" role="img" aria-label="PacketLab"><span className="brand-mark"><Waypoints size={19} /></span><span>packet<span className="brand-light">lab</span></span><span className="version">PREVIEW 0.1</span></div>
         <div className="topbar-center"><span className="live-dot" /> LOCAL SIMULATION <span className="topbar-divider">/</span> WORKSPACE</div>
@@ -508,7 +509,7 @@ export default function App() {
           <div className="sidebar-bottom"><div className="storage-card"><ShieldCheck size={17} /><div><strong>Your lab stays yours</strong><span>Data saved in this browser</span></div><Check size={14} /></div><div className="side-foot"><span>PACKETLAB COMMUNITY EDITION</span><CircleHelp size={14} /></div></div>
         </aside>
 
-        <main className="main-area">
+        <main className="main-area" id="main-content" tabIndex={-1}>
           <div className="page-heading"><div><div className="eyebrow">NETWORK ENVIRONMENT <span>•</span> LAB-001</div><h1>Network studio</h1><p>Build a topology. Send packets. See what happens.</p></div><div className="heading-actions"><button className="secondary-button" onClick={() => fileInput.current?.click()}><FileUp size={15} /> Import lab</button><input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(event) => void importLab(event.target.files?.[0])} /><button className="secondary-button" onClick={connectDevices}><Link2 size={15} /> Connect selected</button></div></div>
 
           <div className="metrics-row"><div className="metric"><span className="metric-icon"><Cpu size={16} /></span><div><span>VIRTUAL DEVICES</span><strong>{String(lab.devices.length).padStart(2, "0")}</strong></div></div><div className="metric"><span className="metric-icon"><Link2 size={16} /></span><div><span>NETWORK LINKS</span><strong>{String(lab.links.length).padStart(2, "0")}</strong></div></div><div className="metric"><span className="metric-icon"><Globe size={16} /></span><div><span>REACHABLE FROM SOURCE</span><strong>{String(reachableCount).padStart(2, "0")} <small>/ {lab.devices.length}</small></strong></div></div><div className="metric"><span className="metric-icon"><Activity size={16} /></span><div><span>PACKETS OBSERVED</span><strong>{String(events.length).padStart(2, "0")}</strong></div></div></div>

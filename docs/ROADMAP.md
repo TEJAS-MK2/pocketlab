@@ -17,6 +17,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Verify corrupted-storage backup, malformed-import preservation, keyboard topology movement, ping-path highlighting, and mobile overflow behavior
 - [x] Add keyboard controls for topology positioning (arrow keys; Shift for larger moves)
 - [x] Add Playwright checks for accessible button/form names and polite status announcements
+- [x] Add a keyboard-visible skip link to the main content region
 - [ ] Complete a full screen-reader and browser accessibility audit
 - [x] Require confirmation before replacing a modified local workspace; test cancelling and accepting the reset
 - [ ] Add storage migrations and autosave recovery tests
