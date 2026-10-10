@@ -33,6 +33,10 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser regression and offline tests
+        run: npm run test:e2e
       - name: Production build
         run: npm run build
       - name: Verify offline shell artifacts
