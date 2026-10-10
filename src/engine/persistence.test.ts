@@ -28,7 +28,7 @@ describe("workspace persistence and recovery", () => {
   });
 
   it("restores a saved lab and accepts older version-one data without firewall rules", () => {
-    const { blockedDeviceIds: _blocked, ...legacyV1 } = starterLab;
+    const legacyV1 = { version: 1 as const, devices: starterLab.devices, links: starterLab.links };
     const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify(legacyV1) });
     const result = readSavedLab(storage);
     expect(result.lab).toEqual(starterLab);
