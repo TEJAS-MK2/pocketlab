@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Typecheck, tests, and production build
+    name: Typecheck, tests, dependency audit, and production build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,6 +27,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
