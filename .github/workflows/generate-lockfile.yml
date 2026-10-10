@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lockfile:
@@ -20,6 +20,17 @@ jobs:
           node-version: 22
       - name: Generate reproducible npm lockfile
         run: npm install --package-lock-only --ignore-scripts
+      - name: Commit lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: commit npm package lockfile"
+            git push origin HEAD:main
+          else
+            echo "package-lock.json is already current."
+          fi
       - name: Upload lockfile artifact
         uses: actions/upload-artifact@v4
         with:
