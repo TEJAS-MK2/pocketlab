@@ -98,8 +98,11 @@ export default function App() {
       return;
     }
     const grid = [12, 31, 50, 69, 88].flatMap((x) => [22, 50, 78].map((y) => ({ x, y })));
+    const canvasBounds = canvasRef.current?.getBoundingClientRect();
+    const minXSpacing = canvasBounds ? (120 / canvasBounds.width) * 100 : 18;
+    const minYSpacing = canvasBounds ? (100 / canvasBounds.height) * 100 : 31;
     const position = grid.find(({ x, y }) => lab.devices.every((device) =>
-      Math.abs(device.x - x) >= 15 || Math.abs(device.y - y) >= 20
+      Math.abs(device.x - x) >= minXSpacing || Math.abs(device.y - y) >= minYSpacing
     ));
     if (!position) {
       setNotice("No free non-overlapping topology position is available.");

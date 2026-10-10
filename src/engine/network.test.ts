@@ -102,6 +102,9 @@ describe("lab file validation", () => {
       version: 1, devices: [{ ...starterLab.devices[0], id: "i".repeat(65) }], links: []
     })).toThrow("invalid device");
     expect(() => validateLab({
+      version: 1, devices: starterLab.devices, links: [{ ...starterLab.links[0], id: "l".repeat(65) }]
+    })).toThrow("invalid link");
+    expect(() => validateLab({
       version: 1, devices: Array.from({ length: 201 }, (_, i) => ({ ...starterLab.devices[0], id: `d${i}`, ip: `10.0.${Math.floor(i / 254)}.${i % 254 + 1}` })), links: []
     })).toThrow("200 devices");
   });
