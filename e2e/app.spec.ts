@@ -57,6 +57,25 @@ test("calculates a subnet and preserves the current lab after malformed import",
   await expect.poll(() => page.evaluate(() => localStorage.getItem("packetlab.workspace.v1"))).toBe(before);
 });
 
+test("requires confirmation before replacing a modified workspace", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Device name").fill("CLIENT-RENAMED");
+  await page.getByRole("button", { name: /^Save$/ }).click();
+  const before = await page.evaluate(() => localStorage.getItem("packetlab.workspace.v1"));
+  await expect(page.getByRole("button", { name: "Select CLIENT-RENAMED" })).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Reset lab" }).click();
+  await expect(page.getByRole("button", { name: "Select CLIENT-RENAMED" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("packetlab.workspace.v1"))).toBe(before);
+  await expect(page.getByText(/Reset cancelled/)).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Reset lab" }).click();
+  await expect(page.getByRole("button", { name: "Select WORKSTATION-01" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Select CLIENT-RENAMED" })).toHaveCount(0);
+});
+
 test("backs up corrupted local storage without overwriting the original", async ({ page }) => {
   const corrupted = "{not-valid-json";
   await page.addInitScript((raw) => {

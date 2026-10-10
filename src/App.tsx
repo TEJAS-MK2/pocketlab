@@ -358,10 +358,16 @@ export default function App() {
   }
 
   function resetLab() {
+    const hasUnsavedConfiguration = JSON.stringify(lab) !== JSON.stringify(starterLab);
+    if (hasUnsavedConfiguration && !window.confirm("Reset PacketLab to the starter topology? This will replace your current local lab configuration.")) {
+      setNotice("Reset cancelled — your current lab is unchanged");
+      return;
+    }
     persist(starterLab);
     setEvents([]);
     setSelectedSource("ws-01");
     setSelectedDestination("srv-01");
+    setActivePath([]);
     setNotice("Starter topology restored");
   }
 

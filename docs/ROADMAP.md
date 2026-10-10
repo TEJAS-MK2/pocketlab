@@ -17,6 +17,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Verify corrupted-storage backup, malformed-import preservation, keyboard topology movement, ping-path highlighting, and mobile overflow behavior
 - [x] Add keyboard controls for topology positioning (arrow keys; Shift for larger moves)
 - [ ] Complete a full accessibility audit
+- [x] Require confirmation before replacing a modified local workspace; test cancelling and accepting the reset
 - [ ] Add storage migrations and autosave recovery tests
 
 ## Phase 1 — Network fundamentals
