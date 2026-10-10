@@ -1,0 +1,29 @@
+name: Generate npm lockfile artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/generate-lockfile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate reproducible npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Upload lockfile artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: packetlab-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 3
