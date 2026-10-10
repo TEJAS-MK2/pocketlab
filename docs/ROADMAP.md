@@ -38,7 +38,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Enforce TTL expiry at the router that decrements the TTL to zero, with the observed path ending at the drop point
 - [ ] Configurable per-interface MAC/IP/mask state, real subnet-aware next-hop selection, and explicit static/default routes
 - [x] Firewall hit counts derived from retained local packet events
-- [x] Interface state is visible in the inspector and controllable through allowlisted terminal commands
+- [x] Interface state is visible in the inspector and controllable through allowlisted terminal commands; ping, route, and simulated HTTP honor down interfaces
 - [ ] More advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
 

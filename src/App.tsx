@@ -390,9 +390,17 @@ export default function App() {
     } else if (verb === "http" && args.length === 1) {
       const device = lab.devices.find((item) => item.id === args[0]);
       if (!device || device.kind !== "server") output.push("HTTP target must be a virtual server ID.");
-      else if (!findPath(lab.devices, lab.links, selectedSource, device.id)) output.push("Connection failed: no simulated route to server.");
-      else if (lab.blockedDeviceIds.includes(device.id)) output.push("Connection failed: blocked by simulated firewall policy.");
-      else output.push("HTTP/1.1 200 OK", "Content-Type: text/plain", "PacketLab simulated web service is online.");
+      else {
+        const source = lab.devices.find((item) => item.id === selectedSource);
+        const activeDevices = lab.devices.filter((item) => item.interfaceUp !== false);
+        const activeIds = new Set(activeDevices.map((item) => item.id));
+        const activeLinks = lab.links.filter((link) => activeIds.has(link.from) && activeIds.has(link.to));
+        if (source?.interfaceUp === false) output.push("Connection failed: source interface eth0 is down.");
+        else if (device.interfaceUp === false) output.push("Connection failed: destination interface eth0 is down.");
+        else if (!findPath(activeDevices, activeLinks, selectedSource, device.id)) output.push("Connection failed: no simulated route to server.");
+        else if (lab.blockedDeviceIds.includes(device.id)) output.push("Connection failed: blocked by simulated firewall policy.");
+        else output.push("HTTP/1.1 200 OK", "Content-Type: text/plain", "PacketLab simulated web service is online.");
+      }
     } else if (verb === "clear") {
       setTerminal([]);
       setCommand("");

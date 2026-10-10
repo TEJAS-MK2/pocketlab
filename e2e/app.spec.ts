@@ -326,7 +326,7 @@ test("administratively shutting down an interface blocks simulated traffic", asy
   await expect(page.getByText("Interface eth0", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await page.getByRole("button", { name: /Packets/ }).click();
-  await expect(page.getByText(/administratively down on WORKSTATION-01/)).toBeVisible();
+  await expect(page.getByLabel("Simulation decision log").getByText(/administratively down on WORKSTATION-01/)).toBeVisible();
   await page.getByLabel("Virtual terminal command").fill("interface ws-01 up");
   await page.getByLabel("Virtual terminal command").press("Enter");
   await expect(page.getByText("Interface eth0 on WORKSTATION-01 is now UP.")).toBeVisible();
@@ -343,5 +343,21 @@ test("virtual terminal can list interface state and disable an intermediate rout
   await terminal.fill("ping ws-01 srv-01");
   await terminal.press("Enter");
   await page.getByRole("button", { name: /Packets/ }).click();
-  await expect(page.getByText(/administratively down on EDGE-ROUTER/)).toBeVisible();
+  await expect(page.getByLabel("Simulation decision log").getByText(/administratively down on EDGE-ROUTER/)).toBeVisible();
+});
+
+
+test("simulated HTTP respects server interface state", async ({ page }) => {
+  await page.goto("/");
+  const terminal = page.getByLabel("Virtual terminal command");
+  await terminal.fill("interface srv-01 down");
+  await terminal.press("Enter");
+  await terminal.fill("http srv-01");
+  await terminal.press("Enter");
+  await expect(page.getByText("Connection failed: destination interface eth0 is down.")).toBeVisible();
+  await terminal.fill("interface srv-01 up");
+  await terminal.press("Enter");
+  await terminal.fill("http srv-01");
+  await terminal.press("Enter");
+  await expect(page.getByText("HTTP/1.1 200 OK")).toBeVisible();
 });
