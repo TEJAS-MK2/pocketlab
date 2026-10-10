@@ -26,8 +26,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            package.json
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning::package-lock.json is missing; using npm install until the lockfile is committed."
+            npm install
+          fi
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
@@ -54,7 +63,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            package.json
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning::package-lock.json is missing; using npm install until the lockfile is committed."
+            npm install
+          fi
       - name: Audit dependencies
         run: npm audit --audit-level=high

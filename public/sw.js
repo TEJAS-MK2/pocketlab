@@ -23,7 +23,7 @@ self.addEventListener("install", (event) => {
     const indexResponse = await fetch(INDEX_URL, { cache: "reload" });
     if (!indexResponse.ok) throw new Error("Unable to precache PacketLab shell.");
     const html = await indexResponse.clone().text();
-    const assetUrls = [...html.matchAll(/(?:src|href)=["']([^"']+\\.(?:js|css)(?:\\?[^"']*)?)["']/g)]
+    const assetUrls = [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)]
       .map((match) => new URL(match[1], INDEX_URL).href);
     const shellUrls = [
       SCOPE_URL.href,

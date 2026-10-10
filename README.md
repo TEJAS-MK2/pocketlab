@@ -24,8 +24,8 @@ PacketLab is an educational environment for building virtual network topologies,
 
 Requirements: Node.js 22.12 or newer and npm.
 
-On a fresh checkout, run `npm install` once to create `package-lock.json`; commit that file.
-CI and deployment use `npm ci`, which requires a committed lockfile, for reproducible installs.
+On a fresh checkout, run `npm install` once to create `package-lock.json`, then commit that file.
+CI and deployment use `npm ci` whenever the lockfile is present; while it is absent, workflows emit a warning and fall back to `npm install`. Commit the lockfile to make installs deterministic.
 
 ```bash
 npm install
