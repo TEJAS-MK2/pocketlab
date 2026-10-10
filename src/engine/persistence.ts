@@ -11,6 +11,7 @@ export type MissionProgress = {
   routeDone: boolean;
   subnetDone: boolean;
   firewallDone: boolean;
+  linkFailureDone: boolean;
 };
 
 export const EMPTY_MISSION_PROGRESS: MissionProgress = {
@@ -18,7 +19,8 @@ export const EMPTY_MISSION_PROGRESS: MissionProgress = {
   pingDone: false,
   routeDone: false,
   subnetDone: false,
-  firewallDone: false
+  firewallDone: false,
+  linkFailureDone: false
 };
 
 export interface LocalStorageLike {
@@ -36,7 +38,8 @@ export function readMissionProgress(storage: LocalStorageLike): MissionProgress 
     const candidate = parsed as Partial<MissionProgress>;
     if (candidate.version !== 1 || typeof candidate.pingDone !== "boolean" ||
         typeof candidate.routeDone !== "boolean" || typeof candidate.subnetDone !== "boolean" ||
-        (candidate.firewallDone !== undefined && typeof candidate.firewallDone !== "boolean")) {
+        (candidate.firewallDone !== undefined && typeof candidate.firewallDone !== "boolean") ||
+        (candidate.linkFailureDone !== undefined && typeof candidate.linkFailureDone !== "boolean")) {
       throw new Error("Unsupported progress data");
     }
     return {
@@ -44,7 +47,8 @@ export function readMissionProgress(storage: LocalStorageLike): MissionProgress 
       pingDone: candidate.pingDone,
       routeDone: candidate.routeDone,
       subnetDone: candidate.subnetDone,
-      firewallDone: candidate.firewallDone === true
+      firewallDone: candidate.firewallDone === true,
+      linkFailureDone: candidate.linkFailureDone === true
     };
   } catch {
     if (raw !== null) {

@@ -81,8 +81,13 @@ describe("guided progress persistence and recovery", () => {
   it("loads valid progress and defaults the optional firewall objective for older records", () => {
     const olderProgress = { version: 1, pingDone: true, routeDone: true, subnetDone: false };
     expect(readMissionProgress(memoryStorage({ [MISSION_PROGRESS_KEY]: JSON.stringify(olderProgress) }))).toEqual({
-      version: 1, pingDone: true, routeDone: true, subnetDone: false, firewallDone: false
+      version: 1, pingDone: true, routeDone: true, subnetDone: false, firewallDone: false, linkFailureDone: false
     });
+  });
+
+  it("loads the optional cable-fault objective from saved progress", () => {
+    const progress = { version: 1, pingDone: true, routeDone: true, subnetDone: true, firewallDone: true, linkFailureDone: true };
+    expect(readMissionProgress(memoryStorage({ [MISSION_PROGRESS_KEY]: JSON.stringify(progress) })).linkFailureDone).toBe(true);
   });
 
   it("backs up invalid progress separately and returns safe defaults", () => {

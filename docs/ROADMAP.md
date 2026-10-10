@@ -47,10 +47,12 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] Structured beginner-to-advanced learning paths
 - [x] Guided connectivity exercise covering ping, route tracing, subnet capacity, and firewall-denial verification; progress follows device IDs, current addresses, renamed devices, and topology changes
 - [x] Award route objective progress only when a valid simulated path exists; regression test covers disconnected topology
-- [ ] More blue-team missions, evidence collection, and scoring
+- [x] Cable-fault mission requires evidence of a link-caused drop followed by a later successful ping after restoration
+- [ ] More advanced blue-team missions, richer evidence collection, and scoring
 - [x] Searchable event log with delivered/dropped filters, historical hop snapshots, and exportable packet-event JSON reports
 - [x] Explainable ICMP simulation steps retained with packet-event history
-- [ ] Deterministic scenario replay with configurable random seed and step-through playback
+- [x] Step-through replay of retained packet decisions with previous/next controls
+- [ ] Full deterministic re-simulation with configurable random seed and packet timing
 - [x] Progress stored locally with independent validation/backup plus explicit reset and JSON export controls
 - [x] Keyboard topology movement, terminal log announcements, focus indicators, and reduced-motion support
 - [ ] Complete a broader screen-reader and browser accessibility audit

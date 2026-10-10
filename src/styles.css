@@ -226,3 +226,7 @@ h1{font-size:25px;letter-spacing:-.5px;font-weight:650;color:#1e2d38}
 .link-editor-row.down{background:#fff8f7}
 .link-editor-row small{display:block;margin-top:3px;font:8px var(--mono);letter-spacing:.3px;color:#71808b}
 .link-editor-row.down small{color:#a13d38}
+
+.packet-replay-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 9px}
+.packet-replay-controls span{font:9px var(--mono);color:#637784}
+.packet-replay-controls button:disabled{opacity:.4;cursor:not-allowed}

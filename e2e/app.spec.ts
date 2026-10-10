@@ -389,3 +389,32 @@ test("virtual terminal lists and toggles link state", async ({ page }) => {
   await page.getByRole("button", { name: /Packets/ }).click();
   await expect(page.getByLabel("Simulation decision log").getByText(/Link ln-02 is administratively down/)).toBeVisible();
 });
+
+
+test("packet decisions can be replayed one step at a time", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  const decisionLog = page.getByLabel("Simulation decision log");
+  await page.getByRole("button", { name: "Replay steps" }).click();
+  await expect(decisionLog).toContainText("Step 1 of");
+  await expect(decisionLog).toContainText("Validated source");
+  await expect(decisionLog).not.toContainText("Simulated ARP lookup");
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(decisionLog).toContainText("Step 2 of");
+  await expect(decisionLog).toContainText("Selected a 2-link path");
+  await page.getByRole("button", { name: "Show all" }).click();
+  await expect(decisionLog).toContainText("Simulated ARP lookup");
+});
+
+test("cable-fault mission requires a recorded drop and a later successful recovery", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Disable link ln-01 down" }).click();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Overview/ }).click();
+  await page.getByRole("button", { name: "Bring link ln-01 up" }).click();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: "Check evidence" }).click();
+  await expect(page.getByText("Cable-fault objective complete")).toBeVisible();
+  await expect(page.getByText("5/5 COMPLETE")).toBeVisible();
+});

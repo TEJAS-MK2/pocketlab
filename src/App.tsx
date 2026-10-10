@@ -29,6 +29,8 @@ export default function App() {
   const [activePath, setActivePath] = useState<string[]>([]);
   const [filter, setFilter] = useState("all");
   const [eventQuery, setEventQuery] = useState("");
+  const [replayEventId, setReplayEventId] = useState<string | null>(null);
+  const [replayStepIndex, setReplayStepIndex] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingDevice = useRef<string | null>(null);
@@ -64,7 +66,8 @@ export default function App() {
   const missionRouteDone = missionProgressState.routeDone;
   const missionSubnetDone = missionProgressState.subnetDone;
   const missionFirewallDone = missionProgressState.firewallDone;
-  const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone, missionFirewallDone].filter(Boolean).length;
+  const missionLinkFailureDone = missionProgressState.linkFailureDone;
+  const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone, missionFirewallDone, missionLinkFailureDone].filter(Boolean).length;
 
   function persist(next: LabSnapshot) {
     setLab(next);
@@ -86,6 +89,37 @@ export default function App() {
     }
   }
 
+  function checkLinkRecoveryMission() {
+    if (missionProgressState.linkFailureDone) {
+      setNotice("Cable-fault objective already complete");
+      return;
+    }
+    const targetLink = lab.links.find((link) => link.id === "ln-01");
+    if (!targetLink) {
+      setNotice("Restore starter link ln-01 before checking cable-fault evidence");
+      return;
+    }
+    const failure = events.find((event) => event.status === "dropped" &&
+      event.steps?.some((step) => step.stage === "link" && step.status === "blocked" && step.message.includes("ln-01")));
+    if (!failure) {
+      setNotice(targetLink.up === false
+        ? "Run ping while ln-01 is down to record the failure"
+        : "Disable ln-01 and run ping to record the cable fault");
+      return;
+    }
+    if (targetLink.up === false) {
+      setNotice("Bring ln-01 back up, then run ping to verify recovery");
+      return;
+    }
+    const recovered = events.some((event) => event.status === "delivered" && Date.parse(event.time) > Date.parse(failure.time));
+    if (!recovered) {
+      setNotice("Link is restored; run ping again to verify end-to-end recovery");
+      return;
+    }
+    const saved = saveMissionProgress({ ...missionProgressState, linkFailureDone: true });
+    setNotice(saved ? "Cable-fault objective complete" : "Cable fault verified, but progress could not be saved locally");
+  }
+
   function resetMissionProgress() {
     const saved = saveMissionProgress({ ...EMPTY_MISSION_PROGRESS });
     setNotice(saved ? "Guided exercise progress reset" : "Progress reset in memory, but could not be saved locally");
@@ -101,7 +135,8 @@ export default function App() {
         connectivity: missionProgressState.pingDone,
         route: missionProgressState.routeDone,
         subnet: missionProgressState.subnetDone,
-        firewall: missionProgressState.firewallDone
+        firewall: missionProgressState.firewallDone,
+        linkFailure: missionProgressState.linkFailureDone
       }
     };
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
@@ -566,7 +601,7 @@ export default function App() {
           </section>
 
           <section className="panel mission-panel">
-            <div className="panel-header"><div><span className="panel-kicker">03 / GUIDED EXERCISE</span><h2><ShieldCheck size={16} /> First response: connectivity</h2></div><span className="mission-progress">{missionProgress}/4 COMPLETE</span></div>
+            <div className="panel-header"><div><span className="panel-kicker">03 / GUIDED EXERCISE</span><h2><ShieldCheck size={16} /> First response: connectivity</h2></div><span className="mission-progress">{missionProgress}/5 COMPLETE</span></div>
             <p className="mission-intro">Work through a small defensive-networking checklist. Everything runs inside the simulator; no real hosts are contacted.</p>
             <div className="mission-objectives">
               <div className={missionPingDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionPingDone ? <Check size={13} /> : "01"}</span><div><strong>Confirm end-to-end connectivity</strong><small>Send a simulated ICMP echo from the workstation to the web server.</small></div><button className="secondary-button" onClick={() => runPing("ws-01", "srv-01")}>{missionPingDone ? "Run again" : "Run ping"}</button></div>
@@ -584,8 +619,9 @@ export default function App() {
                   setNotice("Block WEB-SERVER in the simulated firewall, then run this check again");
                 } else runPing("ws-01", "srv-01");
               }}>{missionFirewallDone ? "Check again" : "Run check"}</button></div>
+              <div className={missionLinkFailureDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionLinkFailureDone ? <Check size={13} /> : "05"}</span><div><strong>Diagnose a cable fault</strong><small>Disable ln-01, capture the drop, restore the link, then confirm connectivity returns.</small></div><button className="secondary-button" onClick={checkLinkRecoveryMission}>{missionLinkFailureDone ? "Verified" : "Check evidence"}</button></div>
             </div>
-            <div className="mission-footer">{missionProgress === 4 ? "Exercise complete — you checked connectivity, route discovery, subnet capacity, and firewall response." : "Hint: use the route, subnet, and firewall tools to explain why a packet can or cannot reach its destination."}</div>
+            <div className="mission-footer">{missionProgress === 5 ? "Exercise complete — you checked connectivity, route discovery, subnet capacity, firewall response, and cable-fault recovery." : "Hint: use the route, subnet, firewall, and link controls to explain why a packet can or cannot reach its destination."}</div>
             <div className="mission-progress-actions">
               <button className="text-button" onClick={exportMissionProgress}>Export progress</button>
               <button className="text-button" onClick={resetMissionProgress}>Reset progress</button>
@@ -604,7 +640,7 @@ export default function App() {
     event.trace[event.trace.length - 1]?.deviceId === device.id
   ).length;
   return <div className="firewall-rule-row" key={device.id}><div><strong>{device.name}</strong><small>{device.ip}</small><small className="firewall-hit-count">{ruleHits} logged hit{ruleHits === 1 ? "" : "s"}</small></div><button className={lab.blockedDeviceIds.includes(device.id) ? "firewall-toggle blocked" : "firewall-toggle"} onClick={() => toggleFirewall(device.id)}>{lab.blockedDeviceIds.includes(device.id) ? "Blocked" : "Allowing"}</button></div>;
-})}</div><div className="inspector-block"><div className="section-heading"><span>SUBNET CALCULATOR</span><span className="small-muted">CIDR</span></div><label className="field-label" htmlFor="subnet-cidr">IPv4 network / prefix</label><input id="subnet-cidr" className="property-input" value={subnetInput} onChange={(event) => setSubnetInput(event.target.value)} placeholder="192.168.1.0/24" />{subnet ? <div className="detail-list subnet-results"><div><span>Network</span><strong>{subnet.network}/{subnet.prefix}</strong></div><div><span>Netmask</span><strong>{subnet.netmask}</strong></div><div><span>Broadcast</span><strong>{subnet.broadcast}</strong></div><div><span>Usable hosts</span><strong>{subnet.usableHosts.toLocaleString()}</strong></div><div><span>Host range</span><strong>{subnet.firstHost} – {subnet.lastHost}</strong></div></div> : <p className="field-hint">Enter a valid IPv4 CIDR such as 10.0.0.0/24.</p>}</div><div className="inspector-block help-block"><span className="help-icon"><Command size={16} /></span><div><strong>Build, then observe.</strong><p>Add virtual devices, connect them, and run a ping. Every result appears in the traffic monitor.</p></div></div></> : <div className="packet-list"><div className="section-heading"><span>EVENT LOG</span><div className="event-actions"><button className="text-button" onClick={exportPacketEvents} disabled={events.length === 0}>Export JSON</button><button className="text-button" onClick={() => { setEvents([]); setEventQuery(""); setFilter("all"); }}>Clear</button></div></div><div className="filter-row"><button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>All</button><button className={filter === "delivered" ? "selected" : ""} onClick={() => setFilter("delivered")}>Delivered</button><button className={filter === "dropped" ? "selected" : ""} onClick={() => setFilter("dropped")}>Dropped</button></div><input className="event-search" aria-label="Filter packet events" type="search" value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder="Search IP, device, or result…" />{visibleEvents.length ? visibleEvents.map((event) => <article className="packet-event" key={event.id}><div className="event-top"><span className={event.status === "delivered" ? "event-status success" : "event-status failure"}>{event.status === "delivered" ? <Check size={12} /> : <X size={12} />}{event.status}</span><span>{event.protocol}</span></div><div className="event-route"><span>{event.source}</span><ArrowRight size={13} /><span>{event.destination}</span></div>{event.trace.length > 0 && <div className="event-trace" aria-label="Simulated packet path"><span className="event-trace-label">PATH</span>{event.trace.map((hop, index) => <span className="event-trace-hop" key={hop.deviceId} title={`${hop.deviceId} · ${hop.ip}`}><span className="event-trace-node"><strong>{hop.name}</strong><small>{hop.ip}</small></span>{index < event.trace.length - 1 && <ArrowRight size={12} aria-hidden="true" />}</span>)}</div>}{event.steps?.length ? <div className="packet-steps" aria-label="Simulation decision log"><div className="event-trace-label">DECISION LOG · SIMULATED</div>{event.steps.map((step) => <div className={`packet-step ${step.status}`} key={step.id}><span className="packet-step-marker" aria-hidden="true" /><span className="packet-step-stage">{step.stage}</span><span>{step.message}</span></div>)}</div> : null}<p>{event.message}</p><time>{new Date(event.time).toLocaleTimeString()}</time></article>) : <div className="empty-state"><Activity size={23} /><strong>{events.length > 0 ? "No matching events" : "No packets yet"}</strong><span>{events.length > 0 ? "Change the search or status filter." : "Run a simulation to inspect network traffic."}</span></div>}</div>}
+})}</div><div className="inspector-block"><div className="section-heading"><span>SUBNET CALCULATOR</span><span className="small-muted">CIDR</span></div><label className="field-label" htmlFor="subnet-cidr">IPv4 network / prefix</label><input id="subnet-cidr" className="property-input" value={subnetInput} onChange={(event) => setSubnetInput(event.target.value)} placeholder="192.168.1.0/24" />{subnet ? <div className="detail-list subnet-results"><div><span>Network</span><strong>{subnet.network}/{subnet.prefix}</strong></div><div><span>Netmask</span><strong>{subnet.netmask}</strong></div><div><span>Broadcast</span><strong>{subnet.broadcast}</strong></div><div><span>Usable hosts</span><strong>{subnet.usableHosts.toLocaleString()}</strong></div><div><span>Host range</span><strong>{subnet.firstHost} – {subnet.lastHost}</strong></div></div> : <p className="field-hint">Enter a valid IPv4 CIDR such as 10.0.0.0/24.</p>}</div><div className="inspector-block help-block"><span className="help-icon"><Command size={16} /></span><div><strong>Build, then observe.</strong><p>Add virtual devices, connect them, and run a ping. Every result appears in the traffic monitor.</p></div></div></> : <div className="packet-list"><div className="section-heading"><span>EVENT LOG</span><div className="event-actions"><button className="text-button" onClick={exportPacketEvents} disabled={events.length === 0}>Export JSON</button><button className="text-button" onClick={() => { setEvents([]); setEventQuery(""); setFilter("all"); setReplayEventId(null); setReplayStepIndex(0); }}>Clear</button></div></div><div className="filter-row"><button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>All</button><button className={filter === "delivered" ? "selected" : ""} onClick={() => setFilter("delivered")}>Delivered</button><button className={filter === "dropped" ? "selected" : ""} onClick={() => setFilter("dropped")}>Dropped</button></div><input className="event-search" aria-label="Filter packet events" type="search" value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder="Search IP, device, or result…" />{visibleEvents.length ? visibleEvents.map((event) => <article className="packet-event" key={event.id}><div className="event-top"><span className={event.status === "delivered" ? "event-status success" : "event-status failure"}>{event.status === "delivered" ? <Check size={12} /> : <X size={12} />}{event.status}</span><span>{event.protocol}</span></div><div className="event-route"><span>{event.source}</span><ArrowRight size={13} /><span>{event.destination}</span></div>{event.trace.length > 0 && <div className="event-trace" aria-label="Simulated packet path"><span className="event-trace-label">PATH</span>{event.trace.map((hop, index) => <span className="event-trace-hop" key={hop.deviceId} title={`${hop.deviceId} · ${hop.ip}`}><span className="event-trace-node"><strong>{hop.name}</strong><small>{hop.ip}</small></span>{index < event.trace.length - 1 && <ArrowRight size={12} aria-hidden="true" />}</span>)}</div>}{event.steps?.length ? <div className="packet-steps" aria-label="Simulation decision log"><div className="event-trace-label">DECISION LOG · SIMULATED</div><div className="packet-replay-controls"><button className="text-button" onClick={() => { setReplayEventId(event.id); setReplayStepIndex(0); }}>Replay steps</button>{replayEventId === event.id ? <><span aria-live="polite">Step {Math.min(replayStepIndex + 1, event.steps.length)} of {event.steps.length}</span><button className="text-button" disabled={replayStepIndex <= 0} onClick={() => setReplayStepIndex((index) => Math.max(0, index - 1))}>Previous step</button><button className="text-button" disabled={replayStepIndex >= event.steps.length - 1} onClick={() => setReplayStepIndex((index) => Math.min(event.steps!.length - 1, index + 1))}>Next step</button><button className="text-button" onClick={() => { setReplayEventId(null); setReplayStepIndex(0); }}>Show all</button></> : null}</div>{event.steps.filter((step, index) => replayEventId !== event.id || index <= replayStepIndex).map((step) => <div className={`packet-step ${step.status}`} key={step.id}><span className="packet-step-marker" aria-hidden="true" /><span className="packet-step-stage">{step.stage}</span><span>{step.message}</span></div>)}</div> : null}<p>{event.message}</p><time>{new Date(event.time).toLocaleTimeString()}</time></article>) : <div className="empty-state"><Activity size={23} /><strong>{events.length > 0 ? "No matching events" : "No packets yet"}</strong><span>{events.length > 0 ? "Change the search or status filter." : "Run a simulation to inspect network traffic."}</span></div>}</div>}
           </div>
           <div className="inspector-footer"><span role="status" aria-live="polite" aria-atomic="true"><span className="status-pip" /> {notice}</span></div>
         </aside>

@@ -7,14 +7,14 @@ PacketLab is an educational environment for building virtual network topologies,
 ## Current features
 
 - Interactive topology view with virtual workstations, routers, servers, and links.
-- Deterministic, in-memory link connectivity and simulated ICMP ping with an inspectable decision log for endpoint checks, route selection, illustrative ARP-style neighbor resolution, router TTL changes, firewall decisions, and delivery/drop reasons.
+- Deterministic, in-memory link connectivity and simulated ICMP ping with an inspectable, step-replayable decision log for endpoint checks, route selection, illustrative ARP-style neighbor resolution, router TTL changes, firewall decisions, and delivery/drop reasons.
 - An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, `route`, `dns`, `http`, and `clear`.
 - Searchable packet event log with delivered/dropped filters, per-hop route snapshots, and local JSON report export.
 - Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and administrative up/down state for both virtual interfaces and links; disabling a link preserves it in the topology while affecting reachability. Device names reject control characters and imported identifiers are command-safe.
 - IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, deterministic simulated ping TTL/latency based on the shortest topology path, and simulated DNS/HTTP responses.
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
 - Local firewall deny rules that persist with a lab and block simulated inbound ping and HTTP requests, with hit counts derived from retained packet events.
-- A four-step guided exercise covering connectivity, route tracing, subnet capacity, and firewall denial; progress is saved locally, validated/recovered separately from the workspace, and has export/reset controls.
+- A five-step guided exercise covering connectivity, route tracing, subnet capacity, firewall denial, and cable-fault recovery; progress is saved locally, validated/recovered separately from the workspace, and has export/reset controls.
 - Local workspace persistence using browser storage, with a raw-data backup when saved workspace JSON is corrupt. Guided exercise progress uses a separate versioned local record and has its own JSON export/reset controls.
 - Validated JSON import/export with a 1 MB import limit, non-empty command-safe IDs, control-character rejection, and model limits of 200 devices / 2,000 links.
 - Confirmation before replacing a modified workspace with the starter lab.
