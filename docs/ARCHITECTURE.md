@@ -11,7 +11,7 @@ PacketLab is a browser-first cybersecurity learning simulator. The core applicat
 - **Simulation domain:** pure functions in `src/engine/network.ts` model IPv4 validation, graph reachability, shortest-path route discovery, CIDR subnet calculations, ping outcomes, and import validation.
 - **Packet decision log:** each simulated ICMP event includes typed endpoint, route, hop-ordered neighbor-resolution, router-forwarding/TTL, firewall, and delivery/drop steps. TTL expiry is enforced at the transit router that reaches zero; the recorded path ends where the packet was dropped. Generated MAC-like addresses are deterministic teaching artifacts, not real interface addresses; the current graph model does not implement configurable subnet masks, real ARP caches, or a full routing table.
 - **Firewall:** a local deny-list is stored in the version-one lab snapshot and enforced by simulated ping. Older version-one files without the field load with an empty rule set.
-- **Topology editing:** device properties, links, positions, and the administrative state of each virtual `eth0` interface are edited in the UI or allowlisted virtual terminal and saved to the local workspace. A down interface removes its attached links from the active simulation graph. Older version-one records without an interface-state field are normalized to interface-up during validation.
+- **Topology editing:** device properties, links, positions, and administrative state for virtual `eth0` interfaces and individual links are edited in the UI or allowlisted virtual terminal and saved to the local workspace. Down interfaces and down links are excluded from the active simulation graph. Older version-one records without these state fields are normalized to up during validation.
 - **Learning:** the first guided exercise derives progress from simulated ping/route evidence and explicit subnet verification; progress is stored in a separate versioned localStorage record with validation, corruption backup, export, and reset controls.
 - **Interface state:** ping, route discovery, and simulated HTTP all honor administrative interface state; a down endpoint or intermediate interface is reported as the cause instead of silently using disabled links.
 - **Persistence:** tested helpers in `src/engine/persistence.ts` load the versioned `packetlab.workspace.v1` workspace and separate guided-progress record. Corrupt raw records are backed up under separate local keys; exported JSON remains the portable backup.
@@ -50,7 +50,7 @@ The initial release keeps some presentation code together in `src/App.tsx` to es
 
 ## Safety invariants
 
-- The terminal accepts only explicit, documented commands, including `interfaces` and `interface <device> up|down`. It must never call `eval`, a system shell, or arbitrary code execution.
+- The terminal accepts only explicit, documented commands, including `interfaces`, `interface <device> up|down`, `links`, and `link <id> up|down`. It must never call `eval`, a system shell, or arbitrary code execution.
 - Packet simulation is local and deterministic; it does not scan real hosts or open sockets.
 - Imported data must be treated as untrusted and validated at the boundary.
 - Keep storage local by default; never add cloud authentication as a prerequisite.

@@ -15,6 +15,8 @@ export interface LabLink {
   id: string;
   from: string;
   to: string;
+  /** Optional for legacy version-one files; missing values migrate to true. */
+  up?: boolean;
 }
 
 export interface LabPacketHop {
@@ -27,7 +29,7 @@ export type LabPacketStepStatus = "pass" | "blocked" | "info";
 
 export interface LabPacketStep {
   id: string;
-  stage: "endpoint" | "interface" | "route" | "neighbor" | "forward" | "firewall" | "delivery" | "drop";
+  stage: "endpoint" | "interface" | "link" | "route" | "neighbor" | "forward" | "firewall" | "delivery" | "drop";
   status: LabPacketStepStatus;
   deviceId?: string;
   deviceName?: string;
@@ -65,8 +67,8 @@ export const starterLab: LabSnapshot = {
     { id: "srv-01", name: "WEB-SERVER", kind: "server", ip: "192.168.10.20", interfaceUp: true, x: 80, y: 43 }
   ],
   links: [
-    { id: "ln-01", from: "ws-01", to: "rt-01" },
-    { id: "ln-02", from: "rt-01", to: "srv-01" }
+    { id: "ln-01", from: "ws-01", to: "rt-01", up: true },
+    { id: "ln-02", from: "rt-01", to: "srv-01", up: true }
   ],
   blockedDeviceIds: []
 };
@@ -193,18 +195,26 @@ export function simulatePing(
   const allRoute = findPath(devices, links, source.id, destination.id);
   const activeDevices = devices.filter((device) => device.interfaceUp !== false);
   const activeIds = new Set(activeDevices.map((device) => device.id));
-  const activeLinks = links.filter((link) => activeIds.has(link.from) && activeIds.has(link.to));
+  const activeLinks = links.filter((link) => link.up !== false && activeIds.has(link.from) && activeIds.has(link.to));
   const route = findPath(activeDevices, activeLinks, source.id, destination.id);
   if (!route) {
     const downHop = allRoute?.map((id) => devicesById.get(id)).find((device) => device?.interfaceUp === false);
+    const downLink = allRoute ? links.find((link) => link.up === false && allRoute.some((id, index) =>
+      index < allRoute.length - 1 && ((allRoute[index] === link.from && allRoute[index + 1] === link.to) ||
+      (allRoute[index] === link.to && allRoute[index + 1] === link.from))
+    )) : undefined;
     const message = downHop
       ? `Interface eth0 is administratively down on ${downHop.name}; no usable path remains to ${destination.ip}.`
-      : `No route to host ${destination.ip}; packet dropped by the simulated network.`;
+      : downLink
+        ? `Link ${downLink.id} is administratively down; no usable path remains to ${destination.ip}.`
+        : `No route to host ${destination.ip}; packet dropped by the simulated network.`;
     const steps = [
       packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
       downHop
         ? packetStep("step-2", "interface", "blocked", message, downHop)
-        : packetStep("step-2", "route", "blocked", `No path exists in the current virtual link graph from ${source.name} to ${destination.name}.`, source),
+        : downLink
+          ? packetStep("step-2", "link", "blocked", message)
+          : packetStep("step-2", "route", "blocked", `No path exists in the current virtual link graph from ${source.name} to ${destination.name}.`, source),
       packetStep("step-3", "drop", "blocked", "The simulated packet was discarded before reaching the destination.")
     ];
     return {
@@ -343,7 +353,8 @@ export function validateLab(value: unknown): LabSnapshot {
   for (const link of candidate.links) {
     if (!link || typeof link.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(link.id) ||
         typeof link.from !== "string" || typeof link.to !== "string" || link.from === link.to ||
-        !ids.has(link.from) || !ids.has(link.to) || linkIds.has(link.id)) {
+        !ids.has(link.from) || !ids.has(link.to) || linkIds.has(link.id) ||
+        (link.up !== undefined && typeof link.up !== "boolean")) {
       throw new Error("Lab contains an invalid link.");
     }
     const connectionKey = [link.from, link.to].sort().join("\\0");
@@ -365,7 +376,7 @@ export function validateLab(value: unknown): LabSnapshot {
       id: device.id, name: device.name.trim(), kind: device.kind, ip: device.ip,
       interfaceUp: device.interfaceUp !== false, x: device.x, y: device.y
     })),
-    links: candidate.links.map((link) => ({ id: link.id, from: link.from, to: link.to })),
+    links: candidate.links.map((link) => ({ id: link.id, from: link.from, to: link.to, up: link.up !== false })),
     blockedDeviceIds: [...blockedDeviceIds]
   };
 }

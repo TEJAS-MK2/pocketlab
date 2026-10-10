@@ -10,7 +10,7 @@ PacketLab is an educational environment for building virtual network topologies,
 - Deterministic, in-memory link connectivity and simulated ICMP ping with an inspectable decision log for endpoint checks, route selection, illustrative ARP-style neighbor resolution, router TTL changes, firewall decisions, and delivery/drop reasons.
 - An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, `route`, `dns`, `http`, and `clear`.
 - Searchable packet event log with delivered/dropped filters, per-hop route snapshots, and local JSON report export.
-- Drag-and-drop topology positioning, editable device names/IP addresses, device removal, link management, and administratively up/down virtual interfaces that affect simulated reachability. Device names reject control characters and imported identifiers are command-safe.
+- Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and administrative up/down state for both virtual interfaces and links; disabling a link preserves it in the topology while affecting reachability. Device names reject control characters and imported identifiers are command-safe.
 - IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, deterministic simulated ping TTL/latency based on the shortest topology path, and simulated DNS/HTTP responses.
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
 - Local firewall deny rules that persist with a lab and block simulated inbound ping and HTTP requests, with hit counts derived from retained packet events.
@@ -53,7 +53,7 @@ npm run build
 4. Try `help` in the virtual terminal for the supported command list.
 5. Add a virtual device or connect two selected devices.
 6. Toggle a selected device's interface down, rerun ping, and inspect the explicit failure reason; bring it back up to restore connectivity.
-7. Use `interfaces` or `interface rt-01 down` in the virtual terminal to inspect and change simulated interface state.
+7. Use `interfaces` / `interface rt-01 down` and `links` / `link ln-02 down` in the virtual terminal to inspect and change simulated interface and link state.
 8. Export the lab as JSON to keep a portable copy.
 
 ## Offline behavior

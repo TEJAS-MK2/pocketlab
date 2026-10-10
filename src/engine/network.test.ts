@@ -116,6 +116,23 @@ describe("network connectivity simulation", () => {
     expect(destinationResult.event.message).toContain("WEB-SERVER");
   });
 
+  it("drops packets when a virtual link is down and reports the failed link", () => {
+    const lab = {
+      ...starterLab,
+      links: starterLab.links.map((link) => link.id === "ln-01" ? { ...link, up: false } : link)
+    };
+    const result = simulatePing(lab.devices, lab.links, "ws-01", "srv-01");
+    expect(result.success).toBe(false);
+    expect(result.event.message).toContain("Link ln-01 is administratively down");
+    expect(result.event.steps?.some((step) => step.stage === "link" && step.status === "blocked")).toBe(true);
+  });
+
+  it("upgrades legacy links without state to link-up", () => {
+    const legacy = JSON.parse(JSON.stringify(starterLab)) as { version: 1; devices: Array<Record<string, unknown>>; links: Array<Record<string, unknown>> };
+    for (const link of legacy.links) delete link.up;
+    expect(validateLab(legacy).links.every((link) => link.up === true)).toBe(true);
+  });
+
   it("drops packets when an intermediate interface is down and reports the cause", () => {
     const lab = {
       ...starterLab,

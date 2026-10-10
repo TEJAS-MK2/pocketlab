@@ -361,3 +361,30 @@ test("simulated HTTP respects server interface state", async ({ page }) => {
   await terminal.press("Enter");
   await expect(page.getByText("HTTP/1.1 200 OK")).toBeVisible();
 });
+
+
+test("a virtual link can be disabled and restored without deleting the topology", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Disable link ln-01 down" }).click();
+  await expect(page.getByText("LINK DOWN", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  await expect(page.getByLabel("Simulation decision log").getByText(/Link ln-01 is administratively down/)).toBeVisible();
+  await page.getByRole("button", { name: "Bring link ln-01 up" }).click();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await expect(page.getByText("Simulation completed · packet delivered")).toBeVisible();
+});
+
+test("virtual terminal lists and toggles link state", async ({ page }) => {
+  await page.goto("/");
+  const terminal = page.getByLabel("Virtual terminal command");
+  await terminal.fill("links");
+  await terminal.press("Enter");
+  await expect(page.getByText(/ln-02\s+rt-01\s+srv-01\s+UP/)).toBeVisible();
+  await terminal.fill("link ln-02 down");
+  await terminal.press("Enter");
+  await terminal.fill("ping ws-01 srv-01");
+  await terminal.press("Enter");
+  await page.getByRole("button", { name: /Packets/ }).click();
+  await expect(page.getByLabel("Simulation decision log").getByText(/Link ln-02 is administratively down/)).toBeVisible();
+});
