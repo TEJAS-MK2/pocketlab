@@ -30,7 +30,7 @@ test("guided progress follows device edits, persists locally, and supports expor
   await expect(page.getByText("Route: LAB-CLIENT -> EDGE-ROUTER -> WEB-SERVER", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("2/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/4 COMPLETE")).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export progress" }).click();
   const download = await downloadPromise;
@@ -46,7 +46,7 @@ test("does not award the route objective when the topology has no route", async 
   await page.goto("/");
   const objectives = page.locator(".mission-objective");
   await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
-  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
 
   // The ping objective switches the inspector to Packets; return to Overview to edit links.
   await page.getByRole("button", { name: /Overview/ }).click();
@@ -57,8 +57,8 @@ test("does not award the route objective when the topology has no route", async 
   await terminal.press("Enter");
 
   await expect(page.getByText("No simulated route between those devices.", { exact: true })).toBeVisible();
-  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
-  await expect(page.getByText("2/3 COMPLETE")).toHaveCount(0);
+  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/4 COMPLETE")).toHaveCount(0);
 });
 
 test("guided firewall objective requires a real simulated policy drop", async ({ page }) => {
