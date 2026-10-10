@@ -29,7 +29,7 @@ Requirements: Node.js 22.12 or newer and npm.
 The committed `package-lock.json` pins the dependency tree. CI and deployment use `npm ci` with npm caching for reproducible installs.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -61,7 +61,7 @@ The first visit requires a network connection. After the service worker installs
 
 The deployment workflow is at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It typechecks, tests, builds the static site, and deploys it to GitHub Pages; dependency auditing runs separately as an informational, non-gating job. Enable Pages manually under **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. The workflow status and published URL should be checked after every release.
 
-The manifest references PNG artwork that is not checked in yet: generate `public/packetlab-icon-192.png` (192×192), `public/packetlab-icon-512.png` (512×512), `public/packetlab-icon-maskable-512.png` (512×512 with safe-area padding for maskable use), and `public/apple-touch-icon.png` (180×180). Until those files are added, SVG branding remains available, but the referenced PNG icon variants cannot load.
+The repository includes `public/packetlab-icon-192.png` (192×192), `public/packetlab-icon-512.png` (512×512), `public/packetlab-icon-maskable-512.png` (512×512 with safe-area padding), and `public/apple-touch-icon.png` (180×180).
 
 ## Safety and privacy
 
