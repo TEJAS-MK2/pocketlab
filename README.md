@@ -14,8 +14,8 @@ PacketLab is an educational environment for building virtual network topologies,
 - IPv4 CIDR subnet calculator, hop-by-hop route discovery with highlighted path links, directly-connected routing tables via `table <device-id-or-ip>`, deterministic simulated ping TTL/latency based on the shortest topology path, and simulated DNS/HTTP responses.
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
 - Local firewall deny rules that persist with a lab and affect simulated ping results, with hit counts derived from retained packet events.
-- A guided connectivity exercise that derives connectivity and route objectives from current device identities and topology, with locally tracked progress.
-- Local workspace persistence using browser storage, with a raw-data backup when saved workspace JSON is corrupt.
+- A guided connectivity exercise with objective progress saved locally, validated/recovered separately from the workspace, and export/reset controls.
+- Local workspace persistence using browser storage, with a raw-data backup when saved workspace JSON is corrupt. Guided exercise progress uses a separate versioned local record and has its own JSON export/reset controls.
 - Validated JSON import/export with a 1 MB import limit, non-empty command-safe IDs, control-character rejection, and model limits of 200 devices / 2,000 links.
 - Confirmation before replacing a modified workspace with the starter lab.
 - Offline app-shell caching after the first successful online visit.

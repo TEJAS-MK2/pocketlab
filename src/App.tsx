@@ -12,6 +12,38 @@ import {
 
 const STORAGE_KEY = "packetlab.workspace.v1";
 const INVALID_BACKUP_KEY = `${STORAGE_KEY}.invalid-backup`;
+const MISSION_PROGRESS_KEY = "packetlab.mission-progress.v1";
+const INVALID_MISSION_PROGRESS_KEY = `${MISSION_PROGRESS_KEY}.invalid-backup`;
+type MissionProgress = { version: 1; pingDone: boolean; routeDone: boolean; subnetDone: boolean };
+const EMPTY_MISSION_PROGRESS: MissionProgress = { version: 1, pingDone: false, routeDone: false, subnetDone: false };
+
+function readMissionProgress(): MissionProgress {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(MISSION_PROGRESS_KEY);
+    if (raw === null) return { ...EMPTY_MISSION_PROGRESS };
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid progress data");
+    const candidate = parsed as Partial<MissionProgress>;
+    if (candidate.version !== 1 || typeof candidate.pingDone !== "boolean" ||
+        typeof candidate.routeDone !== "boolean" || typeof candidate.subnetDone !== "boolean") {
+      throw new Error("Unsupported progress data");
+    }
+    return {
+      version: 1,
+      pingDone: candidate.pingDone,
+      routeDone: candidate.routeDone,
+      subnetDone: candidate.subnetDone
+    };
+  } catch {
+    if (raw !== null) {
+      try { localStorage.setItem(INVALID_MISSION_PROGRESS_KEY, raw); } catch {
+        // Keep the valid in-memory empty progress if browser storage is unavailable.
+      }
+    }
+    return { ...EMPTY_MISSION_PROGRESS };
+  }
+}
 const deviceIcon = (kind: DeviceKind) => kind === "router" ? RadioTower : kind === "server" ? Server : Laptop;
 
 function readSavedLab(): { lab: LabSnapshot; notice: string } {
@@ -60,7 +92,7 @@ export default function App() {
   const [editName, setEditName] = useState("");
   const [editIp, setEditIp] = useState("");
   const [subnetInput, setSubnetInput] = useState("192.168.10.0/24");
-  const [missionSubnetDone, setMissionSubnetDone] = useState(false);
+  const [missionProgressState, setMissionProgressState] = useState(readMissionProgress);
   const subnet = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   const selected = lab.devices.find((device) => device.id === selectedSource);
@@ -82,21 +114,9 @@ export default function App() {
     ];
     return searchableValues.some((value) => value.toLowerCase().includes(normalizedEventQuery));
   });
-  const missionSource = lab.devices.find((device) => device.id === "ws-01");
-  const missionDestination = lab.devices.find((device) => device.id === "srv-01");
-  const missionPingDone = events.some((event) =>
-    event.protocol === "ICMP" &&
-    event.status === "delivered" &&
-    event.trace[0]?.deviceId === missionSource?.id &&
-    event.trace[event.trace.length - 1]?.deviceId === missionDestination?.id
-  );
-  const missionPath = missionSource && missionDestination
-    ? findPath(lab.devices, lab.links, missionSource.id, missionDestination.id)
-    : null;
-  const missionRouteLabel = missionPath
-    ? "Route: " + missionPath.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> ")
-    : null;
-  const missionRouteDone = missionRouteLabel !== null && terminal.includes(missionRouteLabel);
+  const missionPingDone = missionProgressState.pingDone;
+  const missionRouteDone = missionProgressState.routeDone;
+  const missionSubnetDone = missionProgressState.subnetDone;
   const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone].filter(Boolean).length;
 
   function persist(next: LabSnapshot) {
@@ -107,6 +127,43 @@ export default function App() {
     } catch {
       setNotice("Storage unavailable — export your lab to keep a copy");
     }
+  }
+
+  function saveMissionProgress(next: MissionProgress): boolean {
+    setMissionProgressState(next);
+    try {
+      localStorage.setItem(MISSION_PROGRESS_KEY, JSON.stringify(next));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function resetMissionProgress() {
+    const saved = saveMissionProgress({ ...EMPTY_MISSION_PROGRESS });
+    setNotice(saved ? "Guided exercise progress reset" : "Progress reset in memory, but could not be saved locally");
+  }
+
+  function exportMissionProgress() {
+    const report = {
+      version: 1,
+      mission: "first-response-connectivity",
+      exportedAt: new Date().toISOString(),
+      completedCount: missionProgress,
+      objectives: {
+        connectivity: missionProgressState.pingDone,
+        route: missionProgressState.routeDone,
+        subnet: missionProgressState.subnetDone
+      }
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "packetlab-mission-progress.json";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNotice("Guided exercise progress exported");
   }
 
   function addDevice(kind: DeviceKind) {
@@ -256,9 +313,14 @@ export default function App() {
       const result = simulatePing(lab.devices, lab.links, sourceId, destinationId, events.length + 1, lab.blockedDeviceIds);
       setActivePath(result.event.trace.map((hop) => hop.deviceId));
       setEvents((previous) => [result.event, ...previous].slice(0, 100));
+      const progressSaved = result.success && sourceId === "ws-01" && destinationId === "srv-01" && !missionProgressState.pingDone
+        ? saveMissionProgress({ ...missionProgressState, pingDone: true })
+        : true;
       setTerminal((previous) => [...previous, `$ ${echoedCommand}`, ...result.output].slice(-120));
       setActiveTab("packets");
-      setNotice(result.success ? "Simulation completed · packet delivered" : "Simulation completed · packet dropped");
+      setNotice(!progressSaved
+        ? "Ping completed, but guided progress could not be saved locally"
+        : result.success ? "Simulation completed · packet delivered" : "Simulation completed · packet dropped");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Simulation failed";
       setTerminal((previous) => [...previous, `$ ${echoedCommand}`, `Error: ${message}`].slice(-120));
@@ -317,6 +379,11 @@ export default function App() {
       } else {
         output.push("No simulated route between those devices.");
       }
+        if (source?.id === "ws-01" && destination?.id === "srv-01" && !missionProgressState.routeDone) {
+          if (!saveMissionProgress({ ...missionProgressState, routeDone: true })) {
+            setNotice("Route traced, but guided progress could not be saved locally");
+          }
+        }
     } else if (verb === "table" && args.length === 1) {
       const target = lab.devices.find((device) => device.id === args[0] || device.ip === args[0]);
       if (!target) {
@@ -390,7 +457,8 @@ export default function App() {
       setSelectedSource(parsed.devices[0]?.id ?? "");
       setSelectedDestination(parsed.devices.find((device) => device.id !== parsed.devices[0]?.id)?.id ?? parsed.devices[0]?.id ?? "");
       setEvents([]);
-      setNotice("Lab imported and validated");
+      const progressSaved = saveMissionProgress({ ...EMPTY_MISSION_PROGRESS });
+      setNotice(progressSaved ? "Lab imported and validated" : "Lab imported; guided progress could not be saved locally");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not import lab file");
     } finally {
@@ -409,7 +477,8 @@ export default function App() {
     setSelectedSource("ws-01");
     setSelectedDestination("srv-01");
     setActivePath([]);
-    setNotice("Starter topology restored");
+    const progressSaved = saveMissionProgress({ ...EMPTY_MISSION_PROGRESS });
+    setNotice(progressSaved ? "Starter topology restored" : "Starter lab restored; guided progress could not be saved locally");
   }
 
   return (
@@ -484,9 +553,18 @@ export default function App() {
             <div className="mission-objectives">
               <div className={missionPingDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionPingDone ? <Check size={13} /> : "01"}</span><div><strong>Confirm end-to-end connectivity</strong><small>Send a simulated ICMP echo from the workstation to the web server.</small></div><button className="secondary-button" onClick={() => runPing("ws-01", "srv-01")}>{missionPingDone ? "Run again" : "Run ping"}</button></div>
               <div className={missionRouteDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionRouteDone ? <Check size={13} /> : "02"}</span><div><strong>Explain the packet path</strong><small>Trace the route through the virtual edge router.</small></div><button className="secondary-button" onClick={() => runCommand("route ws-01 srv-01")}>{missionRouteDone ? "Trace again" : "Trace route"}</button></div>
-              <div className={missionSubnetDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionSubnetDone ? <Check size={13} /> : "03"}</span><div><strong>Check the LAN subnet</strong><small>Verify a /24 has a 255.255.255.0 mask and 254 usable host addresses.</small></div><button className="secondary-button" onClick={() => { if (subnet?.prefix === 24 && subnet.netmask === "255.255.255.0" && subnet.usableHosts === 254) { setMissionSubnetDone(true); setNotice("Subnet objective complete"); } else { setMissionSubnetDone(false); setNotice("Set a valid /24 subnet with 254 usable hosts first"); } }}>{missionSubnetDone ? "Verified" : "Verify subnet"}</button></div>
+              <div className={missionSubnetDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionSubnetDone ? <Check size={13} /> : "03"}</span><div><strong>Check the LAN subnet</strong><small>Verify a /24 has a 255.255.255.0 mask and 254 usable host addresses.</small></div><button className="secondary-button" onClick={() => {
+                if (subnet?.prefix === 24 && subnet.netmask === "255.255.255.0" && subnet.usableHosts === 254) {
+                  const saved = saveMissionProgress({ ...missionProgressState, subnetDone: true });
+                  setNotice(saved ? "Subnet objective complete" : "Subnet checked, but guided progress could not be saved locally");
+                } else setNotice("Set a valid /24 subnet with 254 usable hosts first");
+              }}>{missionSubnetDone ? "Verified" : "Verify subnet"}</button></div>
             </div>
             <div className="mission-footer">{missionProgress === 3 ? "Exercise complete — you checked connectivity, route discovery, and subnet capacity." : "Hint: use the route and subnet tools to explain why a packet can or cannot reach its destination."}</div>
+            <div className="mission-progress-actions">
+              <button className="text-button" onClick={exportMissionProgress}>Export progress</button>
+              <button className="text-button" onClick={resetMissionProgress}>Reset progress</button>
+            </div>
           </section>
         </main>
 

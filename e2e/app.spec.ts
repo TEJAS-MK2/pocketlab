@@ -15,7 +15,7 @@ test("loads the lab, simulates ping, and shows the packet event", async ({ page 
   await expect(pathTrace.nth(2)).toContainText("WEB-SERVER");
 });
 
-test("guided connectivity objectives follow device identity after name and IP edits", async ({ page }) => {
+test("guided progress follows device edits, persists locally, and supports export/reset", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Device name").fill("LAB-CLIENT");
   await page.getByLabel("IPv4 address").fill("10.5.0.10");
@@ -28,6 +28,18 @@ test("guided connectivity objectives follow device identity after name and IP ed
   await objectives.nth(1).getByRole("button", { name: "Trace route" }).click();
   await expect(page.getByText("2/3 COMPLETE")).toBeVisible();
   await expect(page.getByText("Route: LAB-CLIENT -> EDGE-ROUTER -> WEB-SERVER", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("2/3 COMPLETE")).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export progress" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("packetlab-mission-progress.json");
+
+  await page.getByRole("button", { name: "Reset progress" }).click();
+  await expect(page.getByText("0/3 COMPLETE")).toBeVisible();
+  const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
+  expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false });
 });
 
 test("searches packet traces and exports a packet-event report", async ({ page }) => {
@@ -122,19 +134,25 @@ test("requires confirmation before replacing a modified workspace", async ({ pag
 
 test("backs up corrupted local storage without overwriting the original", async ({ page }) => {
   const corrupted = "{not-valid-json";
-  await page.addInitScript((raw) => {
-    localStorage.setItem("packetlab.workspace.v1", raw);
-  }, corrupted);
+  const corruptedProgress = "{not-valid-progress";
+  await page.addInitScript(({ workspace, mission }) => {
+    localStorage.setItem("packetlab.workspace.v1", workspace);
+    localStorage.setItem("packetlab.mission-progress.v1", mission);
+  }, { workspace: corrupted, mission: corruptedProgress });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Select WORKSTATION-01" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select WEB-SERVER" })).toBeVisible();
   await expect(page.getByText(/raw data backed up under packetlab\.workspace\.v1\.invalid-backup/i)).toBeVisible();
   const saved = await page.evaluate(() => ({
     original: localStorage.getItem("packetlab.workspace.v1"),
-    backup: localStorage.getItem("packetlab.workspace.v1.invalid-backup")
+    backup: localStorage.getItem("packetlab.workspace.v1.invalid-backup"),
+    missionOriginal: localStorage.getItem("packetlab.mission-progress.v1"),
+    missionBackup: localStorage.getItem("packetlab.mission-progress.v1.invalid-backup")
   }));
   expect(saved.original).toBe(corrupted);
   expect(saved.backup).toBe(corrupted);
+  expect(saved.missionOriginal).toBe(corruptedProgress);
+  expect(saved.missionBackup).toBe(corruptedProgress);
 });
 
 test("reopens the built app shell when the browser goes offline", async ({ page, context }) => {

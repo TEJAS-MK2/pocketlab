@@ -42,7 +42,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] More blue-team missions, evidence collection, and scoring
 - [x] Searchable event log with delivered/dropped filters, historical hop snapshots, and exportable packet-event JSON reports
 - [ ] Explainable simulations and deterministic scenario replay
-- [ ] Progress stored locally with reset/export controls
+- [x] Progress stored locally with independent validation/backup plus explicit reset and JSON export controls
 - [x] Keyboard topology movement, terminal log announcements, focus indicators, and reduced-motion support
 - [ ] Complete a broader screen-reader and browser accessibility audit
 
@@ -55,7 +55,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] Formal performance budgets for large-topology operations
 - [ ] Content Security Policy review and dependency audit automation improvements
 - [ ] Browser compatibility matrix and mobile usability pass
-- [ ] Versioned data migrations and backup recovery UX
+- [x] Corrupt workspace and guided-progress JSON are backed up under separate local keys before safe defaults are loaded
+- [ ] Versioned workspace schema migrations and broader backup recovery UX
 
 ## Phase 4 — Optional extensions
 
