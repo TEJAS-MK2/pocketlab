@@ -24,20 +24,20 @@ test("guided progress follows device edits, persists locally, and supports expor
 
   const objectives = page.locator(".mission-objective");
   await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
-  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("1/5 COMPLETE")).toBeVisible();
   await objectives.nth(1).getByRole("button", { name: "Trace route" }).click();
-  await expect(page.getByText("2/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/5 COMPLETE")).toBeVisible();
   await expect(page.getByText("Route: LAB-CLIENT -> EDGE-ROUTER -> WEB-SERVER", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("2/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/5 COMPLETE")).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export progress" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("packetlab-mission-progress.json");
 
   await page.getByRole("button", { name: "Reset progress" }).click();
-  await expect(page.getByText("0/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("0/5 COMPLETE")).toBeVisible();
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
   expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false });
 });
@@ -46,7 +46,7 @@ test("does not award the route objective when the topology has no route", async 
   await page.goto("/");
   const objectives = page.locator(".mission-objective");
   await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
-  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("1/5 COMPLETE")).toBeVisible();
 
   // The ping objective switches the inspector to Packets; return to Overview to edit links.
   await page.getByRole("button", { name: /Overview/ }).click();
@@ -57,8 +57,8 @@ test("does not award the route objective when the topology has no route", async 
   await terminal.press("Enter");
 
   await expect(page.getByText("No simulated route between those devices.", { exact: true })).toBeVisible();
-  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
-  await expect(page.getByText("2/4 COMPLETE")).toHaveCount(0);
+  await expect(page.getByText("1/5 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/5 COMPLETE")).toHaveCount(0);
 });
 
 test("guided firewall objective requires a real simulated policy drop", async ({ page }) => {
@@ -66,12 +66,12 @@ test("guided firewall objective requires a real simulated policy drop", async ({
   const firewallObjective = page.locator(".mission-objective").nth(3);
   await firewallObjective.getByRole("button", { name: "Run check" }).click();
   await expect(page.getByText("Block WEB-SERVER in the simulated firewall, then run this check again")).toBeVisible();
-  await expect(page.getByText("0/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("0/5 COMPLETE")).toBeVisible();
 
   await page.getByRole("button", { name: "Allowing" }).nth(2).click();
   await firewallObjective.getByRole("button", { name: "Run check" }).click();
   await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
-  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
+  await expect(page.getByText("1/5 COMPLETE")).toBeVisible();
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
   expect(savedProgress.firewallDone).toBe(true);
   expect(savedProgress.pingDone).toBe(false);
@@ -416,5 +416,5 @@ test("cable-fault mission requires a recorded drop and a later successful recove
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await page.getByRole("button", { name: "Check evidence" }).click();
   await expect(page.getByText("Cable-fault objective complete")).toBeVisible();
-  await expect(page.getByText("5/5 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/5 COMPLETE")).toBeVisible();
 });
