@@ -39,7 +39,7 @@ test("guided progress follows device edits, persists locally, and supports expor
   await page.getByRole("button", { name: "Reset progress" }).click();
   await expect(page.getByText("0/5 COMPLETE")).toBeVisible();
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
-  expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false });
+  expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false, linkFailureDone: false });
 });
 
 test("does not award the route objective when the topology has no route", async ({ page }) => {
