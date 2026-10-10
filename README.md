@@ -8,8 +8,11 @@ PacketLab is an educational environment for building virtual network topologies,
 
 - Interactive topology view with virtual workstations, routers, servers, and links.
 - Deterministic, in-memory link connectivity and simulated ICMP ping.
-- An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, and `clear`.
+- An allowlisted virtual terminal with `help`, `devices`, `ip`, `ping`, `route`, `dns`, `http`, and `clear`.
 - Packet event log with delivered/dropped filters.
+- Drag-and-drop topology positioning, editable device names/IP addresses, device removal, and link management.
+- IPv4 CIDR subnet calculator, shortest-path route discovery, and simulated DNS/HTTP responses.
+- A guided connectivity exercise with locally tracked progress.
 - Local workspace persistence using browser storage.
 - Validated JSON import/export with a 1 MB import limit.
 - Offline app-shell caching after the first successful online visit.
@@ -30,6 +33,8 @@ Run checks before committing:
 ```bash
 npm run typecheck
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm audit --audit-level=high
 npm run build
 ```
@@ -77,10 +82,12 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] Offline app-shell caching
 - [x] GitHub Pages deployment workflow
-- [ ] Browser-level regression tests and accessibility audit
-- [ ] Device property editor and interactive drag-and-drop
-- [ ] Subnet calculator, routing tables, simulated DNS/HTTP, and firewall rules
-- [ ] Guided blue-team missions with scoring
+- [ ] Verify browser regression and offline tests pass in GitHub Actions
+- [x] Device property editor, drag-and-drop, and link management
+- [x] Subnet calculator, route discovery, simulated DNS/HTTP
+- [x] Guided defensive-networking exercise
+- [ ] Firewall rules, routing table inspection, and packet-path visualization
+- [ ] Accessibility audit and keyboard alternatives for drag-and-drop
 - [ ] Storage migration and backup recovery tests
 
 ## License
