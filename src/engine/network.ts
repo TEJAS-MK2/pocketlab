@@ -196,7 +196,7 @@ function intToIPv4(value: number): string {
 }
 
 export function calculateSubnet(input: string): SubnetResult | null {
-  const match = /^(\\d{1,3}(?:\\.\\d{1,3}){3})\\/(\\d{1,2})$/.exec(input.trim());
+  const match = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/.exec(input.trim());
   if (!match || !isValidIPv4(match[1])) return null;
   const prefix = Number(match[2]);
   if (prefix < 0 || prefix > 32) return null;
