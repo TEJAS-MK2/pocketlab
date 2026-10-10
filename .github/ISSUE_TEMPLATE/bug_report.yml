@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible problem in PacketLab.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please avoid sharing secrets, personal data, or real target-system information."
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear description of the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Network studio…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+    validations:
+      required: false
