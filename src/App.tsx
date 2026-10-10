@@ -9,43 +9,12 @@ import {
   type DeviceKind, type LabDevice, type LabPacketEvent, type LabSnapshot,
   MAX_LAB_DEVICES, MAX_LAB_LINKS, calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
+import {
+  EMPTY_MISSION_PROGRESS, INVALID_BACKUP_KEY, INVALID_MISSION_PROGRESS_KEY,
+  MISSION_PROGRESS_KEY, STORAGE_KEY, readMissionProgress, readSavedLab,
+  type MissionProgress
+} from "./engine/persistence";
 
-const STORAGE_KEY = "packetlab.workspace.v1";
-const INVALID_BACKUP_KEY = `${STORAGE_KEY}.invalid-backup`;
-const MISSION_PROGRESS_KEY = "packetlab.mission-progress.v1";
-const INVALID_MISSION_PROGRESS_KEY = `${MISSION_PROGRESS_KEY}.invalid-backup`;
-type MissionProgress = { version: 1; pingDone: boolean; routeDone: boolean; subnetDone: boolean; firewallDone: boolean };
-const EMPTY_MISSION_PROGRESS: MissionProgress = { version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false };
-
-function readMissionProgress(): MissionProgress {
-  let raw: string | null = null;
-  try {
-    raw = localStorage.getItem(MISSION_PROGRESS_KEY);
-    if (raw === null) return { ...EMPTY_MISSION_PROGRESS };
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid progress data");
-    const candidate = parsed as Partial<MissionProgress>;
-    if (candidate.version !== 1 || typeof candidate.pingDone !== "boolean" ||
-        typeof candidate.routeDone !== "boolean" || typeof candidate.subnetDone !== "boolean" ||
-        (candidate.firewallDone !== undefined && typeof candidate.firewallDone !== "boolean")) {
-      throw new Error("Unsupported progress data");
-    }
-    return {
-      version: 1,
-      pingDone: candidate.pingDone,
-      routeDone: candidate.routeDone,
-      subnetDone: candidate.subnetDone,
-      firewallDone: candidate.firewallDone === true
-    };
-  } catch {
-    if (raw !== null) {
-      try { localStorage.setItem(INVALID_MISSION_PROGRESS_KEY, raw); } catch {
-        // Keep the valid in-memory empty progress if browser storage is unavailable.
-      }
-    }
-    return { ...EMPTY_MISSION_PROGRESS };
-  }
-}
 const deviceIcon = (kind: DeviceKind) => kind === "router" ? RadioTower : kind === "server" ? Server : Laptop;
 
 function readSavedLab(): { lab: LabSnapshot; notice: string } {
@@ -76,7 +45,7 @@ function readSavedLab(): { lab: LabSnapshot; notice: string } {
 }
 
 export default function App() {
-  const [startup] = useState(readSavedLab);
+  const [startup] = useState(() => readSavedLab(localStorage));
   const [lab, setLab] = useState<LabSnapshot>(startup.lab);
   const [events, setEvents] = useState<LabPacketEvent[]>([]);
   const [terminal, setTerminal] = useState<string[]>(["PacketLab terminal v0.1.0", "Simulation environment ready.", "Type help to view available commands."]);
@@ -94,7 +63,7 @@ export default function App() {
   const [editName, setEditName] = useState("");
   const [editIp, setEditIp] = useState("");
   const [subnetInput, setSubnetInput] = useState("192.168.10.0/24");
-  const [missionProgressState, setMissionProgressState] = useState(readMissionProgress);
+  const [missionProgressState, setMissionProgressState] = useState(() => readMissionProgress(localStorage));
   const subnet = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   const selected = lab.devices.find((device) => device.id === selectedSource);
