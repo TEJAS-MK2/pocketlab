@@ -51,15 +51,24 @@ test("reopens the built app shell when the browser goes offline", async ({ page,
   await page.goto("/");
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
-    await new Promise<void>((resolve, reject) => {
-      if (navigator.serviceWorker.controller) { resolve(); return; }
-      const timeout = window.setTimeout(() => reject(new Error("Service worker did not control the page")), 8000);
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.clearTimeout(timeout);
-        resolve();
-      }, { once: true });
-    });
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error("Service worker did not control the page")), 8000);
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.clearTimeout(timeout);
+          resolve();
+        }, { once: true });
+      });
+    }
   });
+  const cachedAssets = await page.evaluate(async () => {
+    const cache = await caches.open("packetlab-shell-v1");
+    return (await cache.keys()).map((request) => new URL(request.url).pathname);
+  });
+  expect(cachedAssets.some((path) => path.endsWith(".js"))).toBe(true);
+  expect(cachedAssets.some((path) => path.endsWith(".css"))).toBe(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Network studio" })).toBeVisible();
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Network studio" })).toBeVisible();
@@ -69,6 +78,7 @@ test("reopens the built app shell when the browser goes offline", async ({ page,
 
 test("moves a device and persists its topology position", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Reset lab" }).click();
   const device = page.getByRole("button", { name: "Select WORKSTATION-01" });
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.workspace.v1")!).devices[0].x as number);
   const box = await device.boundingBox();
@@ -85,6 +95,7 @@ test("firewall deny rules drop simulated traffic and can be lifted", async ({ pa
   await page.getByRole("button", { name: "Allowing" }).nth(2).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
+  await page.getByRole("button", { name: /Overview/ }).click();
   await page.getByRole("button", { name: "Blocked" }).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await expect(page.getByText(/ICMP echo reply received from 192\.168\.10\.20/)).toBeVisible();
