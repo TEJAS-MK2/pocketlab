@@ -135,7 +135,7 @@ export function validateLab(value: unknown): LabSnapshot {
     if (!device || typeof device.id !== "string" || typeof device.name !== "string" ||
         !["workstation", "router", "server"].includes(String(device.kind)) ||
         typeof device.ip !== "string" || !isValidIPv4(device.ip) ||
-        !Number.isFinite(device.x) || !Number.isFinite(device.y)) {
+        !Number.isFinite(device.x) || !Number.isFinite(device.y) || device.x < 0 || device.x > 100 || device.y < 0 || device.y > 100) {
       throw new Error("Lab contains an invalid device.");
     }
     if (ids.has(device.id)) throw new Error("Lab contains duplicate device IDs.");

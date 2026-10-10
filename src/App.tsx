@@ -27,8 +27,8 @@ export default function App() {
   const [events, setEvents] = useState<LabPacketEvent[]>([]);
   const [terminal, setTerminal] = useState<string[]>(["PacketLab terminal v0.1.0", "Simulation environment ready.", "Type help to view available commands."]);
   const [command, setCommand] = useState("");
-  const [selectedSource, setSelectedSource] = useState("ws-01");
-  const [selectedDestination, setSelectedDestination] = useState("srv-01");
+  const [selectedSource, setSelectedSource] = useState(() => lab.devices[0]?.id ?? "");
+  const [selectedDestination, setSelectedDestination] = useState(() => lab.devices.find((device) => device.id !== lab.devices[0]?.id)?.id ?? lab.devices[0]?.id ?? "");
   const [notice, setNotice] = useState("Starter topology loaded");
   const [activeTab, setActiveTab] = useState<"topology" | "packets">("topology");
   const [filter, setFilter] = useState("all");
@@ -64,7 +64,7 @@ export default function App() {
     const count = lab.devices.filter((device) => device.kind === kind).length + 1;
     const prefix = kind === "router" ? "rt" : kind === "server" ? "srv" : "ws";
     const device: LabDevice = {
-      id: `${prefix}-${Date.now().toString(36)}`,
+      id: `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       name: `${kind === "router" ? "ROUTER" : kind === "server" ? "SERVER" : "WORKSTATION"}-${String(count).padStart(2, "0")}`,
       kind,
       ip: kind === "router" ? `192.168.10.${count + 1}` : kind === "server" ? `192.168.10.${20 + count}` : `192.168.10.${10 + count}`,
@@ -77,6 +77,10 @@ export default function App() {
   }
 
   function connectDevices() {
+    if (!lab.devices.some((device) => device.id === selectedSource) || !lab.devices.some((device) => device.id === selectedDestination)) {
+      setNotice("Choose two devices that exist in this lab");
+      return;
+    }
     if (selectedSource === selectedDestination) {
       setNotice("Choose two different devices to create a link");
       return;
@@ -146,6 +150,8 @@ export default function App() {
       if (file.size > 1_000_000) throw new Error("Lab files must be smaller than 1 MB.");
       const parsed = validateLab(JSON.parse(await file.text()));
       persist(parsed);
+      setSelectedSource(parsed.devices[0]?.id ?? "");
+      setSelectedDestination(parsed.devices.find((device) => device.id !== parsed.devices[0]?.id)?.id ?? parsed.devices[0]?.id ?? "");
       setEvents([]);
       setNotice("Lab imported and validated");
     } catch (error) {

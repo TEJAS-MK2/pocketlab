@@ -44,6 +44,24 @@ describe("lab file validation", () => {
     expect(validateLab(starterLab).devices).toHaveLength(3);
   });
 
+  it("rejects device coordinates outside the topology canvas", () => {
+    const invalid = {
+      version: 1 as const,
+      devices: [{ ...starterLab.devices[0], x: 101 }],
+      links: []
+    };
+    expect(() => validateLab(invalid)).toThrow("Lab contains an invalid device.");
+  });
+
+  it("rejects duplicate device IDs", () => {
+    const invalid = {
+      version: 1 as const,
+      devices: [starterLab.devices[0], { ...starterLab.devices[1], id: starterLab.devices[0].id }],
+      links: []
+    };
+    expect(() => validateLab(invalid)).toThrow("Lab contains duplicate device IDs.");
+  });
+
   it("rejects links that point to missing devices", () => {
     expect(() => validateLab({
       version: 1,
