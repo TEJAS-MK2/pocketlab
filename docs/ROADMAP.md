@@ -20,7 +20,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Add a keyboard-visible skip link to the main content region
 - [ ] Complete a full screen-reader and browser accessibility audit
 - [x] Require confirmation before replacing a modified local workspace; test cancelling and accepting the reset
-- [ ] Add storage migrations and autosave recovery tests
+- [x] Add unit tests for corrupt workspace/progress backups, unavailable storage, and legacy version-one compatibility
+- [ ] Add a formal schema-migration layer when the stored format evolves, plus broader user-facing backup recovery
 
 ## Phase 1 — Network fundamentals
 
@@ -55,7 +56,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] Import fuzz tests and malformed-file corpus
 - [x] Boundary stress test for a maximum-sized 200-device / 2,000-link lab
 - [ ] Formal performance budgets for large-topology operations
-- [ ] Content Security Policy review and dependency audit automation improvements
+- [ ] Content Security Policy review
+- [x] Make high-severity dependency audits blocking in CI and before deployment
 - [ ] Browser compatibility matrix and mobile usability pass
 - [x] Corrupt workspace and guided-progress JSON are backed up under separate local keys before safe defaults are loaded
 - [ ] Versioned workspace schema migrations and broader backup recovery UX

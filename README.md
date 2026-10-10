@@ -60,7 +60,7 @@ The first visit requires a network connection. After the service worker installs
 
 ## Deployment
 
-The deployment workflow is at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It audits dependencies, typechecks, runs unit and Playwright browser/offline tests, builds the static site, verifies offline-shell artifacts, and deploys to GitHub Pages only when the required build checks pass. High-severity dependency audit findings block both CI and deployment; review and resolve them rather than treating the audit as informational. Enable Pages manually under **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. After a release, verify the exact commit's workflow result and the published URL.
+The deployment workflow is at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It runs only after **PacketLab CI succeeds on `main`**, and checks out the exact commit that CI tested. CI gates deployment on the high-severity dependency audit, typecheck, unit tests, Playwright browser/offline regressions, production build, and offline-shell artifact checks. The deployment workflow re-runs the dependency audit, typecheck, unit tests, and production build before publishing; manual deployment dispatch also runs the browser suite. High-severity dependency audit findings block release. Enable Pages manually under **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment, then verify the exact commit's workflow result and the published URL.
 
 The repository includes `public/packetlab-icon-192.png` (192×192), `public/packetlab-icon-512.png` (512×512), `public/packetlab-icon-maskable-512.png` (512×512 with safe-area padding), and `public/apple-touch-icon.png` (180×180).
 
@@ -97,8 +97,9 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Regression coverage ensures disconnected route traces cannot complete the route-learning objective
 - [x] Local firewall deny rules and rule effects in ping simulations
 - [x] Routing table inspection and packet-path visualization
-- [ ] Accessibility audit and keyboard alternatives for drag-and-drop
-- [ ] Storage migration and backup recovery tests
+- [x] Keyboard alternatives for topology drag-and-drop (arrow keys; Shift for larger steps)
+- [x] Unit tests for local workspace/progress corruption backups, unavailable storage, and legacy version-one records
+- [ ] Full screen-reader/browser accessibility audit and formal schema-migration framework
 
 ## License
 

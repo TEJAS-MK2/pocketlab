@@ -1,7 +1,9 @@
 name: Deploy PacketLab to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: ["PacketLab CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,10 +18,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,9 +38,11 @@ jobs:
         run: npm run typecheck
       - name: Run unit tests
         run: npm test
-      - name: Install Playwright browser
+      - name: Install Playwright browser (manual deployment only)
+        if: github.event_name == 'workflow_dispatch'
         run: npx playwright install --with-deps chromium
-      - name: Browser regression and offline tests
+      - name: Browser regression and offline tests (manual deployment only)
+        if: github.event_name == 'workflow_dispatch'
         run: npm run test:e2e
       - name: Build production site
         run: npm run build
