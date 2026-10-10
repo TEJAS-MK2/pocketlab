@@ -1,0 +1,18 @@
+{
+  "name": "PacketLab — Network Lab",
+  "short_name": "PacketLab",
+  "description": "A local-first cybersecurity network simulation lab.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101318",
+  "theme_color": "#101318",
+  "icons": [
+    {
+      "src": "./packetlab-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

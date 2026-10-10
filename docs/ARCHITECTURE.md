@@ -10,8 +10,9 @@ PacketLab is a browser-first cybersecurity learning simulator. The core applicat
 - **Build:** Vite; static output in `dist/`.
 - **Simulation domain:** pure functions in `src/engine/network.ts` model IPv4 validation, graph reachability, ping outcomes, and import validation.
 - **Persistence:** versioned localStorage key `packetlab.workspace.v1`. Exported JSON is the portable backup.
+- **Offline shell:** a same-origin service worker precaches the HTML shell, manifest, icon, and built JS/CSS assets, then uses network-first navigation with a cached fallback.
 - **Tests:** Vitest unit tests cover address validation, graph connectivity, ping success/failure, and imported lab validation.
-- **Automation:** GitHub Actions typechecks, tests, builds, and separately deploys GitHub Pages.
+- **Automation:** GitHub Actions typechecks, tests, audits dependencies, builds, and deploys GitHub Pages.
 - **No backend:** no cloud authentication, database, telemetry, or API key is required.
 
 ## Intended module boundaries
@@ -24,6 +25,10 @@ src/
   features/     topology, packet inspector, terminal, scenarios (future extraction)
   storage/      versioned local persistence and migrations (future extraction)
   test/         shared test fixtures (future extraction)
+public/
+  sw.js         offline app-shell cache
+  manifest.webmanifest
+  packetlab-icon.svg
 ```
 
 The initial release keeps some presentation code together in `src/App.tsx` to establish the end-to-end product. Split modules as the feature surface grows, not just to create empty folders.
@@ -35,6 +40,7 @@ The initial release keeps some presentation code together in `src/App.tsx` to es
 3. The UI records simulation events in memory.
 4. Workspace changes are serialized to localStorage. Import data is size-limited and validated before replacing state.
 5. Users can export a JSON copy at any time.
+6. On the first online visit, the service worker caches the app shell and its built assets for later offline reopening.
 
 ## Safety invariants
 
@@ -43,6 +49,7 @@ The initial release keeps some presentation code together in `src/App.tsx` to es
 - Imported data must be treated as untrusted and validated at the boundary.
 - Keep storage local by default; never add cloud authentication as a prerequisite.
 - AI is deferred. The core product and lessons must work with no AI credentials or network connection.
+- The service worker caches only same-origin GET requests inside its own scope.
 
 ## Persistence and compatibility
 
@@ -55,7 +62,8 @@ Before merging a change, run:
 ```bash
 npm run typecheck
 npm test
+npm audit --audit-level=high
 npm run build
 ```
 
-The GitHub Actions workflows run these checks on pushes to `main`. GitHub Pages deployment is a separate workflow and is not considered successful until its run and live site are verified.
+The GitHub Actions workflows run these checks on pushes to `main`. GitHub Pages deployment is not considered successful until its run is green and the published URL has been checked.

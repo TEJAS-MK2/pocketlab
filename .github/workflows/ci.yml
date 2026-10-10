@@ -35,3 +35,5 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Verify offline shell artifacts
+        run: test -f dist/sw.js && test -f dist/manifest.webmanifest && test -f dist/packetlab-icon.svg && node --check dist/sw.js

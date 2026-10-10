@@ -10,9 +10,9 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Simulated ICMP ping and packet event log
 - [x] Allowlisted virtual terminal
 - [x] Local persistence and validated JSON import/export
-- [x] Initial domain tests and CI workflow
-- [x] GitHub Pages deployment workflow added
-- [ ] Verify CI and deployment runs end-to-end
+- [x] Offline app-shell caching for reopening after an online visit
+- [x] Initial domain tests, dependency audit, and CI workflow
+- [x] GitHub Pages deployment workflow and first verified deployment
 - [ ] Add browser-level regression tests and accessibility audit
 - [ ] Add storage migrations and autosave recovery tests
 
@@ -37,10 +37,9 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 
 ## Phase 3 — Platform hardening
 
-- [ ] Offline-capable PWA with explicit update behavior
 - [ ] Import fuzz tests and malformed-file corpus
 - [ ] Performance budgets and large-topology stress tests
-- [ ] Content Security Policy review and dependency audit
+- [ ] Content Security Policy review and dependency audit automation improvements
 - [ ] Browser compatibility matrix and mobile usability pass
 - [ ] Versioned data migrations and backup recovery UX
 

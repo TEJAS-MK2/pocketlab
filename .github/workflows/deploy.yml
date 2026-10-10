@@ -34,6 +34,8 @@ jobs:
         run: npm test
       - name: Build production site
         run: npm run build
+      - name: Verify offline shell artifacts
+        run: test -f dist/sw.js && test -f dist/manifest.webmanifest && test -f dist/packetlab-icon.svg && node --check dist/sw.js
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
