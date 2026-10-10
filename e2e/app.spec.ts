@@ -66,7 +66,7 @@ test("reopens the built app shell when the browser goes offline", async ({ page,
     }
   });
   const cachedAssets = await page.evaluate(async () => {
-    const cache = await caches.open("packetlab-shell-v2");
+    const cache = await caches.open("packetlab-shell-v3");
     return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
   expect(cachedAssets.some((path) => path.endsWith(".js"))).toBe(true);

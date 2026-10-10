@@ -1,4 +1,4 @@
-const CACHE_NAME = "packetlab-shell-v2";
+const CACHE_NAME = "packetlab-shell-v3";
 const APP_SCOPE = self.registration.scope;
 const SCOPE_URL = new URL("./", APP_SCOPE);
 const INDEX_URL = new URL("index.html", APP_SCOPE);
@@ -30,6 +30,10 @@ self.addEventListener("install", (event) => {
       INDEX_URL.href,
       new URL("manifest.webmanifest", APP_SCOPE).href,
       new URL("packetlab-icon.svg", APP_SCOPE).href,
+      new URL("packetlab-icon-192.png", APP_SCOPE).href,
+      new URL("packetlab-icon-512.png", APP_SCOPE).href,
+      new URL("packetlab-icon-maskable-512.png", APP_SCOPE).href,
+      new URL("apple-touch-icon.png", APP_SCOPE).href,
       ...assetUrls
     ];
     await cache.addAll([...new Set(shellUrls)]);

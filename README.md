@@ -18,6 +18,7 @@ PacketLab is an educational environment for building virtual network topologies,
 - Local workspace persistence using browser storage.
 - Validated JSON import/export with a 1 MB import limit.
 - Offline app-shell caching after the first successful online visit.
+- Installed-app icons for standard, maskable, and Apple touch launchers.
 - Responsive interface, unit tests, dependency audit, and CI.
 - GitHub Pages deployment workflow.
 
@@ -25,8 +26,7 @@ PacketLab is an educational environment for building virtual network topologies,
 
 Requirements: Node.js 22.12 or newer and npm.
 
-On a fresh checkout, run `npm install` once to create `package-lock.json`, then commit that file.
-CI and deployment use `npm ci` whenever the lockfile is present; while it is absent, workflows emit a warning and fall back to `npm install`. Commit the lockfile to make installs deterministic.
+The committed `package-lock.json` pins the dependency tree. CI and deployment use `npm ci` with npm caching for reproducible installs.
 
 ```bash
 npm install

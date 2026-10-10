@@ -400,7 +400,7 @@ export default function App() {
                 const from = lab.devices.find((device) => device.id === link.from);
                 const to = lab.devices.find((device) => device.id === link.to);
                 if (!from || !to) return null;
-                const onPath = activePath.some((id, index) => index < activePath.length - 1 && ((activePath[index] === link.from && activePath[index + 1] === link.to) || (activePath[index] === link.to && activePath[index + 1] === link.from)));
+                const onPath = activePath.some((_, index) => index < activePath.length - 1 && ((activePath[index] === link.from && activePath[index + 1] === link.to) || (activePath[index] === link.to && activePath[index + 1] === link.from)));
                 return <g key={link.id}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className={onPath ? "network-link on-path" : "network-link"} /></g>;
               })}</svg>
               {lab.links.map((link) => {

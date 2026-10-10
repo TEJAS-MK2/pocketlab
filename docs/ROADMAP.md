@@ -21,7 +21,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 ## Phase 1 — Network fundamentals
 
 - [x] Device inspector and editable labels/IP configuration
-- [x] Drag-and-drop topology editing (keyboard alternative still needed)
+- [x] Drag-and-drop and keyboard topology editing
 - [x] Subnet calculator, CIDR helpers, and duplicate-IP protection in the device editor
 - [x] Shortest-path route discovery
 - [x] Simulated DNS and HTTP services

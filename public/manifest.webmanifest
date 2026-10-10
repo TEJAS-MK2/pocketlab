@@ -5,8 +5,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#101318",
-  "theme_color": "#101318",
+  "background_color": "#edf0f2",
+  "theme_color": "#183244",
   "icons": [
     {
       "src": "./packetlab-icon-192.png",

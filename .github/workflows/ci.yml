@@ -26,17 +26,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            package.json
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            echo "::warning::package-lock.json is missing; using npm install until the lockfile is committed."
-            npm install
-          fi
+        run: npm ci
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
@@ -48,7 +39,7 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Verify offline shell artifacts
-        run: test -f dist/sw.js && test -f dist/manifest.webmanifest && test -f dist/packetlab-icon.svg && node --check dist/sw.js
+        run: test -f dist/sw.js && test -f dist/manifest.webmanifest && test -f dist/packetlab-icon.svg && test -f dist/packetlab-icon-192.png && test -f dist/packetlab-icon-512.png && test -f dist/packetlab-icon-maskable-512.png && test -f dist/apple-touch-icon.png && node --check dist/sw.js
 
 
   audit:
@@ -63,16 +54,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            package.json
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            echo "::warning::package-lock.json is missing; using npm install until the lockfile is committed."
-            npm install
-          fi
+        run: npm ci
       - name: Audit dependencies
         run: npm audit --audit-level=high
