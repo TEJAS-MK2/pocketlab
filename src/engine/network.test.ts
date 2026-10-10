@@ -97,6 +97,42 @@ describe("network connectivity simulation", () => {
     expect(result.event.steps?.at(-1)?.message).toContain("ICMP was dropped");
   });
 
+  it("drops packets when the source or destination interface is down", () => {
+    const sourceDown = {
+      ...starterLab,
+      devices: starterLab.devices.map((device) => device.id === "ws-01" ? { ...device, interfaceUp: false } : device)
+    };
+    const sourceResult = simulatePing(sourceDown.devices, sourceDown.links, "ws-01", "srv-01");
+    expect(sourceResult.success).toBe(false);
+    expect(sourceResult.event.steps?.some((step) => step.stage === "interface" && step.status === "blocked")).toBe(true);
+    expect(sourceResult.event.message).toContain("WORKSTATION-01");
+
+    const destinationDown = {
+      ...starterLab,
+      devices: starterLab.devices.map((device) => device.id === "srv-01" ? { ...device, interfaceUp: false } : device)
+    };
+    const destinationResult = simulatePing(destinationDown.devices, destinationDown.links, "ws-01", "srv-01");
+    expect(destinationResult.success).toBe(false);
+    expect(destinationResult.event.message).toContain("WEB-SERVER");
+  });
+
+  it("drops packets when an intermediate interface is down and reports the cause", () => {
+    const lab = {
+      ...starterLab,
+      devices: starterLab.devices.map((device) => device.id === "rt-01" ? { ...device, interfaceUp: false } : device)
+    };
+    const result = simulatePing(lab.devices, lab.links, "ws-01", "srv-01");
+    expect(result.success).toBe(false);
+    expect(result.event.message).toContain("EDGE-ROUTER");
+    expect(result.event.steps?.some((step) => step.stage === "interface" && step.status === "blocked")).toBe(true);
+  });
+
+  it("upgrades legacy devices without interface state to administratively up", () => {
+    const legacy = JSON.parse(JSON.stringify(starterLab)) as { version: 1; devices: Array<Record<string, unknown>>; links: LabLink[] };
+    for (const device of legacy.devices) delete device.interfaceUp;
+    expect(validateLab(legacy).devices.every((device) => device.interfaceUp === true)).toBe(true);
+  });
+
   it("explains a disconnected topology as a route failure", () => {
     const result = simulatePing(starterLab.devices, [], "ws-01", "srv-01");
     expect(result.event.steps?.some((step) => step.stage === "route" && step.status === "blocked")).toBe(true);

@@ -5,6 +5,8 @@ export interface LabDevice {
   name: string;
   kind: DeviceKind;
   ip: string;
+  /** Optional for legacy version-one files; missing values migrate to true. */
+  interfaceUp?: boolean;
   x: number;
   y: number;
 }
@@ -25,7 +27,7 @@ export type LabPacketStepStatus = "pass" | "blocked" | "info";
 
 export interface LabPacketStep {
   id: string;
-  stage: "endpoint" | "route" | "neighbor" | "forward" | "firewall" | "delivery" | "drop";
+  stage: "endpoint" | "interface" | "route" | "neighbor" | "forward" | "firewall" | "delivery" | "drop";
   status: LabPacketStepStatus;
   deviceId?: string;
   deviceName?: string;
@@ -58,9 +60,9 @@ export interface LabSnapshot {
 export const starterLab: LabSnapshot = {
   version: 1,
   devices: [
-    { id: "ws-01", name: "WORKSTATION-01", kind: "workstation", ip: "192.168.10.10", x: 18, y: 43 },
-    { id: "rt-01", name: "EDGE-ROUTER", kind: "router", ip: "192.168.10.1", x: 49, y: 43 },
-    { id: "srv-01", name: "WEB-SERVER", kind: "server", ip: "192.168.10.20", x: 80, y: 43 }
+    { id: "ws-01", name: "WORKSTATION-01", kind: "workstation", ip: "192.168.10.10", interfaceUp: true, x: 18, y: 43 },
+    { id: "rt-01", name: "EDGE-ROUTER", kind: "router", ip: "192.168.10.1", interfaceUp: true, x: 49, y: 43 },
+    { id: "srv-01", name: "WEB-SERVER", kind: "server", ip: "192.168.10.20", interfaceUp: true, x: 80, y: 43 }
   ],
   links: [
     { id: "ln-01", from: "ws-01", to: "rt-01" },
@@ -154,6 +156,23 @@ export function simulatePing(
   }
 
   const sourceHop: LabPacketHop = { deviceId: source.id, name: source.name, ip: source.ip };
+  const downEndpoint = [source, destination].find((device) => device.interfaceUp === false);
+  if (downEndpoint) {
+    const message = `Interface eth0 is administratively down on ${downEndpoint.name}; packet dropped.`;
+    const steps = [
+      packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
+      packetStep("step-2", "interface", "blocked", message, downEndpoint)
+    ];
+    return {
+      success: false,
+      event: {
+        id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+        protocol: "ICMP", status: "dropped", message, trace: downEndpoint.id === source.id ? [sourceHop] : [], steps
+      },
+      output: [`PING ${destination.ip} from ${source.ip}`, message, "1 packet transmitted, 0 received, 100% packet loss."]
+    };
+  }
+
   if (source.id === destination.id) {
     const message = "Source and destination are the same device.";
     const steps = [
@@ -170,12 +189,22 @@ export function simulatePing(
     };
   }
 
-  const route = findPath(devices, links, source.id, destination.id);
+  const devicesById = new Map(devices.map((device) => [device.id, device]));
+  const allRoute = findPath(devices, links, source.id, destination.id);
+  const activeDevices = devices.filter((device) => device.interfaceUp !== false);
+  const activeIds = new Set(activeDevices.map((device) => device.id));
+  const activeLinks = links.filter((link) => activeIds.has(link.from) && activeIds.has(link.to));
+  const route = findPath(activeDevices, activeLinks, source.id, destination.id);
   if (!route) {
-    const message = `No route to host ${destination.ip}; packet dropped by the simulated network.`;
+    const downHop = allRoute?.map((id) => devicesById.get(id)).find((device) => device?.interfaceUp === false);
+    const message = downHop
+      ? `Interface eth0 is administratively down on ${downHop.name}; no usable path remains to ${destination.ip}.`
+      : `No route to host ${destination.ip}; packet dropped by the simulated network.`;
     const steps = [
       packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
-      packetStep("step-2", "route", "blocked", `No path exists in the current virtual link graph from ${source.name} to ${destination.name}.`, source),
+      downHop
+        ? packetStep("step-2", "interface", "blocked", message, downHop)
+        : packetStep("step-2", "route", "blocked", `No path exists in the current virtual link graph from ${source.name} to ${destination.name}.`, source),
       packetStep("step-3", "drop", "blocked", "The simulated packet was discarded before reaching the destination.")
     ];
     return {
@@ -184,11 +213,9 @@ export function simulatePing(
         id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
         protocol: "ICMP", status: "dropped", message, trace: [], steps
       },
-      output: [`PING ${destination.ip} from ${source.ip}`, "Request timed out.", "1 packet transmitted, 0 received, 100% packet loss."]
+      output: [`PING ${destination.ip} from ${source.ip}`, message, "1 packet transmitted, 0 received, 100% packet loss."]
     };
   }
-
-  const devicesById = new Map(devices.map((device) => [device.id, device]));
   const plannedTrace: LabPacketHop[] = route.flatMap((id) => {
     const device = devicesById.get(id);
     return device ? [{ deviceId: device.id, name: device.name, ip: device.ip }] : [];
@@ -301,6 +328,7 @@ export function validateLab(value: unknown): LabSnapshot {
         !isValidDeviceName(device.name, 64) ||
         !["workstation", "router", "server"].includes(String(device.kind)) ||
         typeof device.ip !== "string" || !isValidIPv4(device.ip) ||
+        (device.interfaceUp !== undefined && typeof device.interfaceUp !== "boolean") ||
         !Number.isFinite(device.x) || !Number.isFinite(device.y) || device.x < 0 || device.x > 100 || device.y < 0 || device.y > 100) {
       throw new Error("Lab contains an invalid device.");
     }
@@ -334,7 +362,8 @@ export function validateLab(value: unknown): LabSnapshot {
   return {
     version: 1,
     devices: candidate.devices.map((device) => ({
-      id: device.id, name: device.name.trim(), kind: device.kind, ip: device.ip, x: device.x, y: device.y
+      id: device.id, name: device.name.trim(), kind: device.kind, ip: device.ip,
+      interfaceUp: device.interfaceUp !== false, x: device.x, y: device.y
     })),
     links: candidate.links.map((link) => ({ id: link.id, from: link.from, to: link.to })),
     blockedDeviceIds: [...blockedDeviceIds]

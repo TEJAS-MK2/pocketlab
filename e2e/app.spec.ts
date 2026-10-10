@@ -318,3 +318,30 @@ test("packet inspector explains simulated neighbor lookup, routing, and TTL", as
   await expect(decisionLog).toContainText("TTL 64 -> 63");
   await expect(decisionLog).toContainText("delivery");
 });
+
+
+test("administratively shutting down an interface blocks simulated traffic", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Bring interface down on WORKSTATION-01" }).click();
+  await expect(page.getByText("Interface eth0", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  await expect(page.getByText(/administratively down on WORKSTATION-01/)).toBeVisible();
+  await page.getByLabel("Virtual terminal command").fill("interface ws-01 up");
+  await page.getByLabel("Virtual terminal command").press("Enter");
+  await expect(page.getByText("Interface eth0 on WORKSTATION-01 is now UP.")).toBeVisible();
+});
+
+test("virtual terminal can list interface state and disable an intermediate router", async ({ page }) => {
+  await page.goto("/");
+  const terminal = page.getByLabel("Virtual terminal command");
+  await terminal.fill("interfaces");
+  await terminal.press("Enter");
+  await expect(page.getByText(/rt-01\s+eth0\s+UP/)).toBeVisible();
+  await terminal.fill("interface rt-01 down");
+  await terminal.press("Enter");
+  await terminal.fill("ping ws-01 srv-01");
+  await terminal.press("Enter");
+  await page.getByRole("button", { name: /Packets/ }).click();
+  await expect(page.getByText(/administratively down on EDGE-ROUTER/)).toBeVisible();
+});

@@ -142,6 +142,7 @@ export default function App() {
       name: `${kind === "router" ? "ROUTER" : kind === "server" ? "SERVER" : "WORKSTATION"}-${String(count).padStart(2, "0")}`,
       kind,
       ip: `192.168.10.${host}`,
+      interfaceUp: true,
       x: position.x,
       y: position.y
     };
@@ -170,6 +171,17 @@ export default function App() {
     setSelectedSource(remaining[0]?.id ?? "");
     setSelectedDestination(remaining.find((device) => device.id !== remaining[0]?.id)?.id ?? remaining[0]?.id ?? "");
     setNotice(removedName + " and its links were removed");
+  }
+
+  function toggleInterface(deviceId: string) {
+    const device = lab.devices.find((item) => item.id === deviceId);
+    if (!device) return;
+    const interfaceUp = device.interfaceUp === false;
+    persist({
+      ...lab,
+      devices: lab.devices.map((item) => item.id === deviceId ? { ...item, interfaceUp } : item)
+    });
+    setNotice(`Interface eth0 ${interfaceUp ? "brought up" : "shut down"} on ${device.name}`);
   }
 
   function toggleFirewall(deviceId: string) {
@@ -300,9 +312,23 @@ export default function App() {
     const [verb, ...args] = input.split(/\s+/);
     const output: string[] = [`$ ${input}`];
     if (verb === "help") {
-      output.push("help                 Show this command list", "devices              List virtual devices", "ip <device-id>       Show a device address", "ping <source> <dest> Simulate an ICMP echo request", "route <src> <dest>   Trace a simulated path hop-by-hop", "table <device-id>    Inspect directly connected routes", "dns <device-id>      Resolve a lab device name", "http <server-id>     Request a simulated web page", "clear                Clear terminal output");
+      output.push("help                         Show this command list", "devices                      List virtual devices", "ip <device-id>               Show a device address", "interfaces                   List virtual interface states", "interface <device> up|down   Change a simulated interface state", "ping <source> <dest>         Simulate an ICMP echo request", "route <src> <dest>           Trace a simulated path hop-by-hop", "table <device-id>            Inspect directly connected routes", "dns <device-id>              Resolve a lab device name", "http <server-id>             Request a simulated web page", "clear                        Clear terminal output");
     } else if (verb === "devices") {
       output.push(...lab.devices.map((device) => `${device.id.padEnd(12)} ${device.ip.padEnd(16)} ${device.name}`));
+    } else if (verb === "interfaces" && args.length === 0) {
+      output.push("DEVICE       INTERFACE  STATE");
+      output.push(...lab.devices.map((device) => `${device.id.padEnd(12)} eth0       ${device.interfaceUp === false ? "DOWN" : "UP"}`));
+    } else if (verb === "interface" && args.length === 2) {
+      const target = lab.devices.find((device) => device.id === args[0] || device.ip === args[0] || device.name.toLowerCase() === args[0].toLowerCase());
+      const desiredState = args[1].toLowerCase();
+      if (!target) output.push(`Device "${args[0]}" not found. Use a device ID, IP, or name.`);
+      else if (desiredState !== "up" && desiredState !== "down") output.push("Usage: interface <device-id> up|down");
+      else {
+        const interfaceUp = desiredState === "up";
+        persist({ ...lab, devices: lab.devices.map((device) => device.id === target.id ? { ...device, interfaceUp } : device) });
+        setNotice(`Interface eth0 ${interfaceUp ? "brought up" : "shut down"} on ${target.name}`);
+        output.push(`Interface eth0 on ${target.name} is now ${interfaceUp ? "UP" : "DOWN"}.`);
+      }
     } else if (verb === "ip" && args.length === 1) {
       const device = lab.devices.find((item) => item.id === args[0]);
       output.push(device ? `${device.name}: ${device.ip}/24` : "Device not found.");
@@ -323,7 +349,10 @@ export default function App() {
       const resolveEndpoint = (value: string) => lab.devices.find((device) => device.id === value || device.ip === value);
       const source = resolveEndpoint(args[0]);
       const destination = resolveEndpoint(args[1]);
-      const path = source && destination ? findPath(lab.devices, lab.links, source.id, destination.id) : null;
+      const activeDevices = lab.devices.filter((device) => device.interfaceUp !== false);
+      const activeIds = new Set(activeDevices.map((device) => device.id));
+      const activeLinks = lab.links.filter((link) => activeIds.has(link.from) && activeIds.has(link.to));
+      const path = source && destination ? findPath(activeDevices, activeLinks, source.id, destination.id) : null;
       setActivePath(path ?? []);
       if (path) {
         output.push("Route: " + path.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> "));
@@ -536,7 +565,7 @@ export default function App() {
           <div className="inspector-header"><div><span className="panel-kicker">INSPECTOR</span><h2>Traffic monitor</h2></div><button className="tiny-icon" title="Filter events" aria-label="Filter events" onClick={() => setFilter(filter === "all" ? "dropped" : filter === "dropped" ? "delivered" : "all")}><Filter size={15} /></button></div>
           <div className="inspector-tabs"><button className={activeTab === "topology" ? "active" : ""} onClick={() => setActiveTab("topology")}><Waypoints size={14} /> Overview</button><button className={activeTab === "packets" ? "active" : ""} onClick={() => setActiveTab("packets")}><Activity size={14} /> Packets <span>{events.length}</span></button></div>
           <div className="inspector-content">
-            {activeTab === "topology" ? <><div className="inspector-block"><div className="section-heading"><span>SIMULATION CONTROL</span><span className="small-muted">ICMP</span></div><label className="field-label" htmlFor="source-select">Source device</label><select id="source-select" value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><label className="field-label" htmlFor="destination-select">Destination device</label><select id="destination-select" value={selectedDestination} onChange={(event) => setSelectedDestination(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><button className="run-button" onClick={() => runPing()}><Play size={15} fill="currentColor" /> Run ping simulation</button><p className="field-hint">Simulated traffic only. No packets leave this browser.</p></div><div className="inspector-block"><div className="section-heading"><span>SELECTED DEVICE</span><span className="small-muted">DETAILS</span></div>{selected ? <div className="selected-device"><span className={`device-icon large ${selected.kind}`}>{(() => { const Icon = deviceIcon(selected.kind); return <Icon size={20} />; })()}</span><div><strong>{selected.name}</strong><span>{selected.kind.toUpperCase()}</span></div></div> : <p className="empty-state">Select a device in the topology.</p>}{selected && <><div className="detail-list"><div><span>IPv4 address</span><strong>{selected.ip}</strong></div><div><span>Subnet</span><strong>255.255.255.0</strong></div><div><span>Interface</span><strong>eth0</strong></div><div><span>Connectivity</span><strong className="detail-ok"><span className="status-pip" /> Virtual</strong></div></div><div className="device-editor"><div className="section-heading"><span>EDIT PROPERTIES</span><span className="small-muted">LOCAL</span></div><label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="property-input" value={editName} maxLength={48} onChange={(event) => setEditName(event.target.value)} /><label className="field-label" htmlFor="device-ip">IPv4 address</label><input id="device-ip" className="property-input" value={editIp} inputMode="decimal" onChange={(event) => setEditIp(event.target.value)} /><div className="property-actions"><button className="secondary-button" onClick={saveSelectedDevice}><Save size={13} /> Save</button><button className="danger-button" onClick={deleteSelectedDevice}><Trash2 size={13} /> Remove</button></div></div></>}</div><div className="inspector-block"><div className="section-heading"><span>NETWORK LINKS</span><span className="small-muted">{lab.links.length} TOTAL</span></div>{lab.links.length ? lab.links.map((link) => <div className="link-editor-row" key={link.id}><span>{lab.devices.find((device) => device.id === link.from)?.name ?? link.from} <ArrowRight size={11} /> {lab.devices.find((device) => device.id === link.to)?.name ?? link.to}</span><button className="tiny-icon" title="Remove network link" aria-label={`Remove link ${link.id}`} onClick={() => deleteLink(link.id)}><X size={13} /></button></div>) : <p className="empty-state compact">No links. Select two devices and connect them.</p>}</div><div className="inspector-block"><div className="section-heading"><span>SIMULATED FIREWALL</span><span className="small-muted">DENY LIST</span></div><p className="field-hint">Block or allow traffic to a virtual device. Rules are saved with this lab.</p>{lab.devices.map((device) => {
+            {activeTab === "topology" ? <><div className="inspector-block"><div className="section-heading"><span>SIMULATION CONTROL</span><span className="small-muted">ICMP</span></div><label className="field-label" htmlFor="source-select">Source device</label><select id="source-select" value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><label className="field-label" htmlFor="destination-select">Destination device</label><select id="destination-select" value={selectedDestination} onChange={(event) => setSelectedDestination(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><button className="run-button" onClick={() => runPing()}><Play size={15} fill="currentColor" /> Run ping simulation</button><p className="field-hint">Simulated traffic only. No packets leave this browser.</p></div><div className="inspector-block"><div className="section-heading"><span>SELECTED DEVICE</span><span className="small-muted">DETAILS</span></div>{selected ? <div className="selected-device"><span className={`device-icon large ${selected.kind}`}>{(() => { const Icon = deviceIcon(selected.kind); return <Icon size={20} />; })()}</span><div><strong>{selected.name}</strong><span>{selected.kind.toUpperCase()}</span></div></div> : <p className="empty-state">Select a device in the topology.</p>}{selected && <><div className="detail-list"><div><span>IPv4 address</span><strong>{selected.ip}</strong></div><div><span>Subnet</span><strong>255.255.255.0</strong></div><div><span>Interface eth0</span><strong className={selected.interfaceUp === false ? "detail-down" : "detail-ok"}>{selected.interfaceUp === false ? "DOWN" : "UP"}</strong></div><div><span>Connectivity</span><strong className="detail-ok"><span className="status-pip" /> Virtual</strong></div></div><div className="device-editor"><div className="section-heading"><span>EDIT PROPERTIES</span><span className="small-muted">LOCAL</span></div><label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="property-input" value={editName} maxLength={48} onChange={(event) => setEditName(event.target.value)} /><label className="field-label" htmlFor="device-ip">IPv4 address</label><input id="device-ip" className="property-input" value={editIp} inputMode="decimal" onChange={(event) => setEditIp(event.target.value)} /><div className="property-actions"><button className="secondary-button" onClick={saveSelectedDevice}><Save size={13} /> Save</button><button className={selected.interfaceUp === false ? "secondary-button" : "danger-button"} aria-label={`Bring interface ${selected.interfaceUp === false ? "up" : "down"} on ${selected.name}`} onClick={() => toggleInterface(selected.id)}>{selected.interfaceUp === false ? "Bring interface up" : "Bring interface down"}</button><button className="danger-button" onClick={deleteSelectedDevice}><Trash2 size={13} /> Remove</button></div></div></>}</div><div className="inspector-block"><div className="section-heading"><span>NETWORK LINKS</span><span className="small-muted">{lab.links.length} TOTAL</span></div>{lab.links.length ? lab.links.map((link) => <div className="link-editor-row" key={link.id}><span>{lab.devices.find((device) => device.id === link.from)?.name ?? link.from} <ArrowRight size={11} /> {lab.devices.find((device) => device.id === link.to)?.name ?? link.to}</span><button className="tiny-icon" title="Remove network link" aria-label={`Remove link ${link.id}`} onClick={() => deleteLink(link.id)}><X size={13} /></button></div>) : <p className="empty-state compact">No links. Select two devices and connect them.</p>}</div><div className="inspector-block"><div className="section-heading"><span>SIMULATED FIREWALL</span><span className="small-muted">DENY LIST</span></div><p className="field-hint">Block or allow traffic to a virtual device. Rules are saved with this lab.</p>{lab.devices.map((device) => {
   const ruleHits = events.filter((event) =>
     event.status === "dropped" &&
     event.message.startsWith("Blocked by simulated firewall policy") &&
