@@ -13,8 +13,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Offline app-shell caching for reopening after an online visit
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] GitHub Pages deployment workflow and first verified deployment
-- [x] Add Playwright browser-level regression and offline startup tests (awaiting first green CI run)
-- [ ] Complete accessibility audit
+- [x] Add Playwright browser-level regression and offline startup tests (verified green in GitHub Actions)
+- [ ] Complete accessibility audit and add keyboard controls for topology positioning
 - [ ] Add storage migrations and autosave recovery tests
 
 ## Phase 1 — Network fundamentals
@@ -25,7 +25,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Shortest-path route discovery
 - [x] Simulated DNS and HTTP services
 - [ ] Routing tables and hop-by-hop packet-path visualization
-- [ ] Firewall rules, allow/deny policy, and rule-hit counters
+- [x] Local firewall deny/allow policy that changes simulated ping outcomes
+- [ ] Rule-hit counters and more advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
 
 ## Phase 2 — Guided learning
