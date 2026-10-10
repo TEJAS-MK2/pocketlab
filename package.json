@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -23,6 +24,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "typescript": "^6.0.3",
     "vite": "^8.3.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "@playwright/test": "^1.55.0"
   }
 }
