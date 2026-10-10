@@ -122,7 +122,7 @@ describe("simulated firewall rules", () => {
   });
 
   it("keeps old version-one imports compatible without firewall rules", () => {
-    const { blockedDeviceIds: _blockedDeviceIds, ...oldFormat } = starterLab;
+    const oldFormat = { version: 1 as const, devices: starterLab.devices, links: starterLab.links };
     expect(validateLab(oldFormat).blockedDeviceIds).toEqual([]);
   });
 
