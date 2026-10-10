@@ -563,7 +563,7 @@ export default function App() {
           </section>
 
           <section className="panel mission-panel">
-            <div className="panel-header"><div><span className="panel-kicker">03 / GUIDED EXERCISE</span><h2><ShieldCheck size={16} /> First response: connectivity</h2></div><span className="mission-progress">{missionProgress}/3 COMPLETE</span></div>
+            <div className="panel-header"><div><span className="panel-kicker">03 / GUIDED EXERCISE</span><h2><ShieldCheck size={16} /> First response: connectivity</h2></div><span className="mission-progress">{missionProgress}/4 COMPLETE</span></div>
             <p className="mission-intro">Work through a small defensive-networking checklist. Everything runs inside the simulator; no real hosts are contacted.</p>
             <div className="mission-objectives">
               <div className={missionPingDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionPingDone ? <Check size={13} /> : "01"}</span><div><strong>Confirm end-to-end connectivity</strong><small>Send a simulated ICMP echo from the workstation to the web server.</small></div><button className="secondary-button" onClick={() => runPing("ws-01", "srv-01")}>{missionPingDone ? "Run again" : "Run ping"}</button></div>
