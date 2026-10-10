@@ -21,6 +21,17 @@ export interface LabPacketHop {
   ip: string;
 }
 
+export type LabPacketStepStatus = "pass" | "blocked" | "info";
+
+export interface LabPacketStep {
+  id: string;
+  stage: "endpoint" | "route" | "neighbor" | "forward" | "firewall" | "delivery" | "drop";
+  status: LabPacketStepStatus;
+  deviceId?: string;
+  deviceName?: string;
+  message: string;
+}
+
 export interface LabPacketEvent {
   id: string;
   time: string;
@@ -30,6 +41,8 @@ export interface LabPacketEvent {
   status: "delivered" | "dropped" | "info";
   message: string;
   trace: LabPacketHop[];
+  /** Explainable local-only simulation decisions; optional for legacy event records. */
+  steps?: LabPacketStep[];
 }
 
 export const MAX_LAB_DEVICES = 200;
@@ -101,6 +114,30 @@ function createEventId(): string {
   return `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
 }
 
+/** Stable locally administered MAC-like address for illustrating simulated ARP, never a real NIC address. */
+export function simulatedMacAddress(deviceId: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < deviceId.length; index += 1) {
+    hash ^= deviceId.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const bytes = [2, 0x50, (hash >>> 24) & 255, (hash >>> 16) & 255, (hash >>> 8) & 255, hash & 255];
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join(":");
+}
+
+function packetStep(
+  id: string,
+  stage: LabPacketStep["stage"],
+  status: LabPacketStepStatus,
+  message: string,
+  device?: LabDevice
+): LabPacketStep {
+  return {
+    id, stage, status, message,
+    ...(device ? { deviceId: device.id, deviceName: device.name } : {})
+  };
+}
+
 export function simulatePing(
   devices: LabDevice[],
   links: LabLink[],
@@ -119,11 +156,15 @@ export function simulatePing(
   const sourceHop: LabPacketHop = { deviceId: source.id, name: source.name, ip: source.ip };
   if (source.id === destination.id) {
     const message = "Source and destination are the same device.";
+    const steps = [
+      packetStep("step-1", "endpoint", "pass", `Source and destination ${source.ip} resolve to the same virtual interface.`, source),
+      packetStep("step-2", "delivery", "pass", "Reply handled locally; no virtual link traversal or router hop was needed.", source)
+    ];
     return {
       success: true,
       event: {
         id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
-        protocol: "ICMP", status: "delivered", message, trace: [sourceHop]
+        protocol: "ICMP", status: "delivered", message, trace: [sourceHop], steps
       },
       output: [`PING ${destination.ip} from ${source.ip}`, "Reply from local interface: 0.2 ms", "1 packet transmitted, 1 received."]
     };
@@ -132,11 +173,16 @@ export function simulatePing(
   const route = findPath(devices, links, source.id, destination.id);
   if (!route) {
     const message = `No route to host ${destination.ip}; packet dropped by the simulated network.`;
+    const steps = [
+      packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
+      packetStep("step-2", "route", "blocked", `No path exists in the current virtual link graph from ${source.name} to ${destination.name}.`, source),
+      packetStep("step-3", "drop", "blocked", "The simulated packet was discarded before reaching the destination.")
+    ];
     return {
       success: false,
       event: {
         id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
-        protocol: "ICMP", status: "dropped", message, trace: []
+        protocol: "ICMP", status: "dropped", message, trace: [], steps
       },
       output: [`PING ${destination.ip} from ${source.ip}`, "Request timed out.", "1 packet transmitted, 0 received, 100% packet loss."]
     };
@@ -148,13 +194,49 @@ export function simulatePing(
     return device ? [{ deviceId: device.id, name: device.name, ip: device.ip }] : [];
   });
 
+  const steps: LabPacketStep[] = [
+    packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
+    packetStep("step-2", "route", "pass", `Selected a ${route.length - 1}-link path: ${trace.map((hop) => hop.name).join(" -> ")}.`, source)
+  ];
+
+  // Each edge models a virtual neighbor adjacency. MAC-like values are illustrative, not hardware addresses.
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const current = devicesById.get(route[index]);
+    const next = devicesById.get(route[index + 1]);
+    if (!current || !next) continue;
+    steps.push(packetStep(
+      `step-${steps.length + 1}`, "neighbor", "info",
+      `Simulated ARP lookup: ${current.name} resolved next-hop ${next.ip} to illustrative address ${simulatedMacAddress(next.id)}.`,
+      current
+    ));
+  }
+
+  const transitRouters = route.slice(1, -1)
+    .map((id) => devicesById.get(id))
+    .filter((device): device is LabDevice => device?.kind === "router");
+  let ttl = 64;
+  for (const router of transitRouters) {
+    const before = ttl;
+    ttl = Math.max(0, ttl - 1);
+    steps.push(packetStep(
+      `step-${steps.length + 1}`, "forward", ttl > 0 ? "pass" : "blocked",
+      `Router forwarding decision at ${router.name}: TTL ${before} -> ${ttl}.`,
+      router
+    ));
+  }
+
   if (blockedDeviceIds.includes(destination.id)) {
     const message = `Blocked by simulated firewall policy for ${destination.name}.`;
+    steps.push(packetStep(
+      `step-${steps.length + 1}`, "firewall", "blocked",
+      `Simulated destination deny rule matched ${destination.name} (${destination.ip}); ICMP was dropped.`,
+      destination
+    ));
     return {
       success: false,
       event: {
         id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
-        protocol: "ICMP", status: "dropped", message, trace
+        protocol: "ICMP", status: "dropped", message, trace, steps
       },
       output: [`PING ${destination.ip} from ${source.ip}`, "Firewall policy denied the simulated packet.", "1 packet transmitted, 0 received, policy drop."]
     };
@@ -162,15 +244,20 @@ export function simulatePing(
 
   const message = `ICMP echo reply received from ${destination.ip}`;
   const hops = route.length - 1;
+  steps.push(packetStep(
+    `step-${steps.length + 1}`, "delivery", "pass",
+    `Simulated ICMP echo reply delivered to ${source.name}; estimated one-way link latency is ${Math.max(1, hops * 1.2).toFixed(1)} ms per direction.`,
+    destination
+  ));
   return {
     success: true,
     event: {
       id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
-      protocol: "ICMP", status: "delivered", message, trace
+      protocol: "ICMP", status: "delivered", message, trace, steps
     },
     output: [
       `PING ${destination.ip} from ${source.ip}`,
-      `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=${Math.max(1, 64 - hops)} time=${Math.max(1, hops * 1.2).toFixed(1)} ms`,
+      `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=${ttl} time=${Math.max(1, hops * 1.2).toFixed(1)} ms`,
       "1 packet transmitted, 1 received, 0% packet loss."
     ]
   };

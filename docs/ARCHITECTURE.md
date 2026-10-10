@@ -9,6 +9,7 @@ PacketLab is a browser-first cybersecurity learning simulator. The core applicat
 - **UI:** React + TypeScript, with a responsive three-column workspace.
 - **Build:** Vite; static output in `dist/`.
 - **Simulation domain:** pure functions in `src/engine/network.ts` model IPv4 validation, graph reachability, shortest-path route discovery, CIDR subnet calculations, ping outcomes, and import validation.
+- **Packet decision log:** each simulated ICMP event includes typed endpoint, route, neighbor-resolution, router-forwarding/TTL, firewall, and delivery/drop steps. Generated MAC-like addresses are deterministic teaching artifacts, not real interface addresses; the current graph model does not implement configurable subnet masks, real ARP caches, or a full routing table.
 - **Firewall:** a local deny-list is stored in the version-one lab snapshot and enforced by simulated ping. Older version-one files without the field load with an empty rule set.
 - **Topology editing:** device properties, links, and positions are edited in the UI and saved to the local workspace. Drag interactions are pointer-based for touch and mouse input.
 - **Learning:** the first guided exercise derives progress from simulated ping/route evidence and explicit subnet verification; progress is stored in a separate versioned localStorage record with validation, corruption backup, export, and reset controls.
@@ -42,7 +43,8 @@ The initial release keeps some presentation code together in `src/App.tsx` to es
 2. The engine returns typed results; it does not access the DOM, localStorage, network, or shell.
 3. The UI records simulation events in memory.
 4. Workspace changes are serialized to localStorage. Workspace and guided-progress reads validate stored data and preserve corrupt raw records under separate backup keys. Import data is size-limited and validated before replacing state.
-5. Users can export a JSON copy at any time.
+5. Packet event history includes an explainable snapshot of simulation decisions; each generated neighbor MAC-like address is derived locally from the virtual device ID.
+6. Users can export a JSON copy at any time.
 6. On the first online visit, the service worker caches the app shell and its built assets for later offline reopening.
 
 ## Safety invariants

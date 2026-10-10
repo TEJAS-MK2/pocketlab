@@ -206,3 +206,15 @@ h1{font-size:25px;letter-spacing:-.5px;font-weight:650;color:#1e2d38}
 .skip-link{position:absolute;z-index:10000;top:-60px;left:12px;padding:9px 12px;background:#fff;color:#203746;border:2px solid #c27b22;border-radius:3px;font-size:12px;font-weight:700;text-decoration:none}
 .skip-link:focus{top:10px;outline:2px solid #203746;outline-offset:2px}
 #main-content:focus{outline:none}
+
+
+/* Explain deterministic packet-processing decisions without implying real capture. */
+.packet-steps{display:grid;gap:7px;margin:10px 0 8px;padding:9px 0 2px;border-top:1px solid #e1e7eb}
+.packet-step{display:grid;grid-template-columns:6px 58px minmax(0,1fr);align-items:start;gap:7px;font-size:9px;line-height:1.5;color:#4c5f6c;overflow-wrap:anywhere}
+.packet-step-marker{width:6px;height:6px;margin-top:4px;border-radius:50%;background:#8294a0}
+.packet-step.pass .packet-step-marker{background:#32825b}
+.packet-step.blocked .packet-step-marker{background:#b84b45}
+.packet-step-stage{font:8px var(--mono);text-transform:uppercase;letter-spacing:.35px;color:#687c88}
+.packet-step.blocked .packet-step-stage{color:#a13d38}
+.packet-step.info .packet-step-stage{color:#8a6b31}
+@media(max-width:520px){.packet-step{grid-template-columns:6px 52px minmax(0,1fr);gap:5px;font-size:8px}}

@@ -32,7 +32,9 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Simulated DNS and HTTP services
 - [x] Simulated directly-connected routing table and hop-by-hop path highlighting
 - [x] Local firewall deny/allow policy that blocks simulated ping and HTTP requests to protected devices
-- [x] Deterministic ping TTL and latency estimates derived from the selected shortest topology path
+- [x] Deterministic ping TTL decremented only by intermediate virtual routers; latency remains an explicitly estimated simulation value
+- [x] Explainable ICMP event decision log for endpoint validation, path selection, simulated ARP-style neighbor resolution, router forwarding, firewall decisions, and delivery/drop outcomes
+- [ ] Configurable per-interface MAC/IP/mask state, real subnet-aware next-hop selection, and explicit static/default routes
 - [x] Firewall hit counts derived from retained local packet events
 - [ ] More advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
@@ -44,7 +46,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Award route objective progress only when a valid simulated path exists; regression test covers disconnected topology
 - [ ] More blue-team missions, evidence collection, and scoring
 - [x] Searchable event log with delivered/dropped filters, historical hop snapshots, and exportable packet-event JSON reports
-- [ ] Explainable simulations and deterministic scenario replay
+- [x] Explainable ICMP simulation steps retained with packet-event history
+- [ ] Deterministic scenario replay with configurable random seed and step-through playback
 - [x] Progress stored locally with independent validation/backup plus explicit reset and JSON export controls
 - [x] Keyboard topology movement, terminal log announcements, focus indicators, and reduced-motion support
 - [ ] Complete a broader screen-reader and browser accessibility audit

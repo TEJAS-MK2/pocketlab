@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatePing, starterLab, validateLab } from "./network";
+import { calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatedMacAddress, simulatePing, starterLab, validateLab } from "./network";
 
 describe("device name validation", () => {
   it("accepts useful names and rejects blank, overlong, and control-character names", () => {
@@ -47,13 +47,35 @@ describe("network connectivity simulation", () => {
 
   it("reports route-aware TTL and deterministic per-hop latency", () => {
     const multiHop = simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01");
-    expect(multiHop.output.join("\\n")).toContain("ttl=62 time=2.4 ms");
+    expect(multiHop.output.join("\\n")).toContain("ttl=63 time=2.4 ms");
 
     const direct = simulatePing(starterLab.devices, [
       ...starterLab.links,
       { id: "ln-direct", from: "ws-01", to: "srv-01" }
     ], "ws-01", "srv-01");
-    expect(direct.output.join("\\n")).toContain("ttl=63 time=1.2 ms");
+    expect(direct.output.join("\\n")).toContain("ttl=64 time=1.2 ms");
+  });
+
+  it("explains simulated neighbor resolution and decrements TTL at intermediate routers only", () => {
+    const result = simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01");
+    expect(result.event.steps?.some((step) => step.message.includes("Simulated ARP lookup"))).toBe(true);
+    expect(result.event.steps?.some((step) => step.message.includes("TTL 64 -> 63"))).toBe(true);
+    expect(result.event.steps?.at(-1)?.stage).toBe("delivery");
+    expect(simulatedMacAddress("rt-01")).toBe(simulatedMacAddress("rt-01"));
+    expect(simulatedMacAddress("rt-01")).toMatch(/^02:50:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$/);
+    expect(simulatedMacAddress("rt-01")).not.toBe(simulatedMacAddress("srv-01"));
+  });
+
+  it("records firewall decisions in the event history", () => {
+    const result = simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01", 1, ["srv-01"]);
+    expect(result.success).toBe(false);
+    expect(result.event.steps?.some((step) => step.stage === "firewall" && step.status === "blocked")).toBe(true);
+    expect(result.event.steps?.at(-1)?.message).toContain("ICMP was dropped");
+  });
+
+  it("explains a disconnected topology as a route failure", () => {
+    const result = simulatePing(starterLab.devices, [], "ws-01", "srv-01");
+    expect(result.event.steps?.some((step) => step.stage === "route" && step.status === "blocked")).toBe(true);
   });
 
   it("drops a ping when the path is disconnected", () => {

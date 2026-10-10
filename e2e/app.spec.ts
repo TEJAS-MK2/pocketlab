@@ -306,3 +306,15 @@ test("firewall deny rules drop simulated traffic, count hits, and can be lifted"
   await page.getByRole("button", { name: /Overview/ }).click();
   await expect(page.locator(".firewall-hit-count")).toHaveText(["0 logged hits", "0 logged hits", "0 logged hits"]);
 });;
+
+
+test("packet inspector explains simulated neighbor lookup, routing, and TTL", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Run ping simulation" }).click();
+  await page.getByRole("button", { name: /Packets/ }).click();
+  const decisionLog = page.getByLabel("Simulation decision log");
+  await expect(decisionLog).toBeVisible();
+  await expect(decisionLog).toContainText("Simulated ARP lookup");
+  await expect(decisionLog).toContainText("TTL 64 -> 63");
+  await expect(decisionLog).toContainText("delivery");
+});
