@@ -30,7 +30,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Shortest-path route discovery
 - [x] Simulated DNS and HTTP services
 - [x] Simulated directly-connected routing table and hop-by-hop path highlighting
-- [x] Local firewall deny/allow policy that changes simulated ping outcomes
+- [x] Local firewall deny/allow policy that blocks simulated ping and HTTP requests to protected devices
 - [x] Deterministic ping TTL and latency estimates derived from the selected shortest topology path
 - [x] Firewall hit counts derived from retained local packet events
 - [ ] More advanced policy matching

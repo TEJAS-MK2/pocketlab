@@ -276,6 +276,10 @@ test("firewall deny rules drop simulated traffic, count hits, and can be lifted"
   await page.getByRole("button", { name: "Allowing" }).nth(2).click();
   await page.getByRole("button", { name: "Run ping simulation" }).click();
   await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
+  const terminal = page.getByLabel("Virtual terminal command");
+  await terminal.fill("http srv-01");
+  await terminal.press("Enter");
+  await expect(page.getByText("Connection failed: blocked by simulated firewall policy.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Overview/ }).click();
   await expect(page.getByText("1 logged hit", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Blocked" }).click();

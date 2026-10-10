@@ -406,8 +406,9 @@ export default function App() {
     } else if (verb === "http" && args.length === 1) {
       const device = lab.devices.find((item) => item.id === args[0]);
       if (!device || device.kind !== "server") output.push("HTTP target must be a virtual server ID.");
-      else if (findPath(lab.devices, lab.links, selectedSource, device.id)) output.push("HTTP/1.1 200 OK", "Content-Type: text/plain", "PacketLab simulated web service is online.");
-      else output.push("Connection failed: no simulated route to server.");
+      else if (!findPath(lab.devices, lab.links, selectedSource, device.id)) output.push("Connection failed: no simulated route to server.");
+      else if (lab.blockedDeviceIds.includes(device.id)) output.push("Connection failed: blocked by simulated firewall policy.");
+      else output.push("HTTP/1.1 200 OK", "Content-Type: text/plain", "PacketLab simulated web service is online.");
     } else if (verb === "clear") {
       setTerminal([]);
       setCommand("");
