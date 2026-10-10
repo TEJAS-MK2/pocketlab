@@ -1,13 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowRight, Check, ChevronDown, CircleHelp,
   Command, Cpu, Download, FileUp, Filter, Globe, Laptop, Link2, Network,
-  Play, Plus, RadioTower, RotateCcw, Server, ShieldCheck, TerminalSquare,
+  Play, Plus, RadioTower, RotateCcw, Route, Save, Server, ShieldCheck, TerminalSquare,
   Trash2, Waypoints, X
 } from "lucide-react";
 import {
   type DeviceKind, type LabDevice, type LabPacketEvent, type LabSnapshot,
-  simulatePing, starterLab, validateLab
+  calculateSubnet, findPath, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
 
 const STORAGE_KEY = "packetlab.workspace.v1";
@@ -33,8 +33,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"topology" | "packets">("topology");
   const [filter, setFilter] = useState("all");
   const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const draggingDevice = useRef<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIp, setEditIp] = useState("");
+  const [subnetInput, setSubnetInput] = useState("192.168.10.0/24");
+  const subnet = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   const selected = lab.devices.find((device) => device.id === selectedSource);
+  useEffect(() => {
+    setEditName(selected?.name ?? "");
+    setEditIp(selected?.ip ?? "");
+  }, [selected?.id, selected?.name, selected?.ip]);
   const reachableCount = useMemo(() => {
     if (!selected) return 0;
     const reachable = new Set<string>([selected.id]);
@@ -76,6 +86,60 @@ export default function App() {
     setNotice(`${device.name} added to the lab`);
   }
 
+  function saveSelectedDevice() {
+    if (!selected) return;
+    const name = editName.trim();
+    const ip = editIp.trim();
+    if (!name || name.length > 48) { setNotice("Device names must be 1–48 characters."); return; }
+    if (!isValidIPv4(ip)) { setNotice("Enter a valid canonical IPv4 address."); return; }
+    if (lab.devices.some((device) => device.id !== selected.id && device.ip === ip)) { setNotice("Another device already uses that IPv4 address."); return; }
+    persist({ ...lab, devices: lab.devices.map((device) => device.id === selected.id ? { ...device, name, ip } : device) });
+    setNotice("Device properties saved locally");
+  }
+
+  function deleteSelectedDevice() {
+    if (!selected) return;
+    const removedName = selected.name;
+    const remaining = lab.devices.filter((device) => device.id !== selected.id);
+    const next = { ...lab, devices: remaining, links: lab.links.filter((link) => link.from !== selected.id && link.to !== selected.id) };
+    persist(next);
+    setSelectedSource(remaining[0]?.id ?? "");
+    setSelectedDestination(remaining.find((device) => device.id !== remaining[0]?.id)?.id ?? remaining[0]?.id ?? "");
+    setNotice(removedName + " and its links were removed");
+  }
+
+  function deleteLink(linkId: string) {
+    persist({ ...lab, links: lab.links.filter((link) => link.id !== linkId) });
+    setNotice("Network link removed");
+  }
+
+  function handleCanvasPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const deviceElement = target.closest<HTMLButtonElement>(".canvas-device");
+    const id = deviceElement?.dataset.deviceId;
+    if (!id) return;
+    draggingDevice.current = id;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleCanvasPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const id = draggingDevice.current;
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    if (!id || !bounds || bounds.width === 0 || bounds.height === 0) return;
+    const x = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100));
+    const y = Math.max(12, Math.min(88, ((event.clientY - bounds.top) / bounds.height) * 100));
+    setLab((previous) => ({ ...previous, devices: previous.devices.map((device) => device.id === id ? { ...device, x, y } : device) }));
+  }
+
+  function handleCanvasPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (!draggingDevice.current) return;
+    draggingDevice.current = null;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lab)); setNotice("Topology position saved locally"); }
+    catch { setNotice("Storage unavailable — export your lab to keep a copy"); }
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
   function connectDevices() {
     if (!lab.devices.some((device) => device.id === selectedSource) || !lab.devices.some((device) => device.id === selectedDestination)) {
       setNotice("Choose two devices that exist in this lab");
@@ -112,7 +176,7 @@ export default function App() {
     const [verb, ...args] = input.split(/\s+/);
     const output: string[] = [`$ ${input}`];
     if (verb === "help") {
-      output.push("help                 Show this command list", "devices              List virtual devices", "ip <device-id>       Show a device address", "ping <source> <dest> Simulate an ICMP echo request", "clear                Clear terminal output");
+      output.push("help                 Show this command list", "devices              List virtual devices", "ip <device-id>       Show a device address", "ping <source> <dest> Simulate an ICMP echo request", "route <src> <dest>   Show a simulated path", "dns <device-id>      Resolve a lab device name", "http <server-id>     Request a simulated web page", "clear                Clear terminal output");
     } else if (verb === "devices") {
       output.push(...lab.devices.map((device) => `${device.id.padEnd(12)} ${device.ip.padEnd(16)} ${device.name}`));
     } else if (verb === "ip" && args.length === 1) {
@@ -122,6 +186,17 @@ export default function App() {
       runPing(args[0], args[1]);
       setCommand("");
       return;
+    } else if (verb === "route" && args.length === 2) {
+      const path = findPath(lab.devices, lab.links, args[0], args[1]);
+      output.push(path ? "Route: " + path.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> ") : "No simulated route between those devices.");
+    } else if (verb === "dns" && args.length === 1) {
+      const device = lab.devices.find((item) => item.id === args[0] || item.name.toLowerCase() === args[0].toLowerCase());
+      output.push(device ? device.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-") + ".lab -> " + device.ip + " (simulated DNS)" : "Name not found in the simulated lab.");
+    } else if (verb === "http" && args.length === 1) {
+      const device = lab.devices.find((item) => item.id === args[0]);
+      if (!device || device.kind !== "server") output.push("HTTP target must be a virtual server ID.");
+      else if (findPath(lab.devices, lab.links, selectedSource, device.id)) output.push("HTTP/1.1 200 OK", "Content-Type: text/plain", "PacketLab simulated web service is online.");
+      else output.push("Connection failed: no simulated route to server.");
     } else if (verb === "clear") {
       setTerminal([]);
       setCommand("");
@@ -203,7 +278,7 @@ export default function App() {
 
           <section className="panel topology-panel">
             <div className="panel-header"><div><span className="panel-kicker">01 / TOPOLOGY</span><h2>Virtual network</h2></div><div className="panel-tools"><span className="canvas-legend"><i className="legend-line" /> Link <i className="legend-dot" /> Device</span><button className="tiny-icon" title="Reset starter topology" onClick={resetLab}><RotateCcw size={15} /></button></div></div>
-            <div className="topology-canvas">
+            <div className="topology-canvas" ref={canvasRef} onPointerDown={handleCanvasPointerDown} onPointerMove={handleCanvasPointerMove} onPointerUp={handleCanvasPointerUp} onPointerCancel={handleCanvasPointerUp}>
               <div className="canvas-grid" />
               <svg className="link-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Network connections">{lab.links.map((link) => {
                 const from = lab.devices.find((device) => device.id === link.from);
@@ -213,11 +288,11 @@ export default function App() {
               })}</svg>
               {lab.devices.map((device) => {
                 const Icon = deviceIcon(device.kind);
-                return <button key={device.id} className={selectedSource === device.id ? "canvas-device is-selected" : "canvas-device"} style={{ left: `${device.x}%`, top: `${device.y}%` }} onClick={() => setSelectedSource(device.id)} aria-label={`Select ${device.name}`}><span className={`canvas-device-icon ${device.kind}`}><Icon size={20} /></span><strong>{device.name}</strong><small>{device.ip}</small><span className="canvas-device-port" /></button>;
+                return <button key={device.id} className={selectedSource === device.id ? "canvas-device is-selected" : "canvas-device"} data-device-id={device.id} style={{ left: `${device.x}%`, top: `${device.y}%`, touchAction: "none" }} onClick={() => setSelectedSource(device.id)} aria-label={`Select ${device.name}`}><span className={`canvas-device-icon ${device.kind}`}><Icon size={20} /></span><strong>{device.name}</strong><small>{device.ip}</small><span className="canvas-device-port" /></button>;
               })}
               <div className="canvas-label canvas-label-top"><span className="status-pip" /> SIMULATION READY</div><div className="canvas-label canvas-label-bottom">LAN / 192.168.10.0/24</div>
             </div>
-            <div className="topology-footer"><span><span className="status-pip" /> All systems simulated</span><span>Drag-and-drop positioning · coming soon</span></div>
+            <div className="topology-footer"><span><span className="status-pip" /> All systems simulated</span><span>Drag devices to reposition · saved locally</span></div>
           </section>
 
           <section className="panel console-panel">
