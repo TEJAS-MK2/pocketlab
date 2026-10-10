@@ -199,7 +199,7 @@ export function simulatePing(
   const route = findPath(activeDevices, activeLinks, source.id, destination.id);
   if (!route) {
     const downHop = allRoute?.map((id) => devicesById.get(id)).find((device) => device?.interfaceUp === false);
-    const downLink = allRoute ? links.find((link) => link.up === false && allRoute.some((id, index) =>
+    const downLink = allRoute ? links.find((link) => link.up === false && allRoute.some((_, index) =>
       index < allRoute.length - 1 && ((allRoute[index] === link.from && allRoute[index + 1] === link.to) ||
       (allRoute[index] === link.to && allRoute[index + 1] === link.from))
     )) : undefined;
