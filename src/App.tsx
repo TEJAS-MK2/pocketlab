@@ -82,8 +82,21 @@ export default function App() {
     ];
     return searchableValues.some((value) => value.toLowerCase().includes(normalizedEventQuery));
   });
-  const missionPingDone = events.some((event) => event.protocol === "ICMP" && event.status === "delivered" && event.source === "192.168.10.10" && event.destination === "192.168.10.20");
-  const missionRouteDone = terminal.some((line) => line.startsWith("Route: WORKSTATION-01 -> EDGE-ROUTER -> WEB-SERVER"));
+  const missionSource = lab.devices.find((device) => device.id === "ws-01");
+  const missionDestination = lab.devices.find((device) => device.id === "srv-01");
+  const missionPingDone = events.some((event) =>
+    event.protocol === "ICMP" &&
+    event.status === "delivered" &&
+    event.trace[0]?.deviceId === missionSource?.id &&
+    event.trace[event.trace.length - 1]?.deviceId === missionDestination?.id
+  );
+  const missionPath = missionSource && missionDestination
+    ? findPath(lab.devices, lab.links, missionSource.id, missionDestination.id)
+    : null;
+  const missionRouteLabel = missionPath
+    ? "Route: " + missionPath.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> ")
+    : null;
+  const missionRouteDone = missionRouteLabel !== null && terminal.includes(missionRouteLabel);
   const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone].filter(Boolean).length;
 
   function persist(next: LabSnapshot) {

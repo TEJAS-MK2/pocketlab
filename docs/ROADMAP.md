@@ -38,7 +38,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 ## Phase 2 — Guided learning
 
 - [ ] Structured beginner-to-advanced learning paths
-- [x] First guided connectivity exercise with locally derived objective progress
+- [x] First guided connectivity exercise with locally derived objective progress that follows device IDs, current addresses, renamed devices, and the current topology
 - [ ] More blue-team missions, evidence collection, and scoring
 - [x] Searchable event log with delivered/dropped filters, historical hop snapshots, and exportable packet-event JSON reports
 - [ ] Explainable simulations and deterministic scenario replay

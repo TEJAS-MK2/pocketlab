@@ -15,6 +15,21 @@ test("loads the lab, simulates ping, and shows the packet event", async ({ page 
   await expect(pathTrace.nth(2)).toContainText("WEB-SERVER");
 });
 
+test("guided connectivity objectives follow device identity after name and IP edits", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Device name").fill("LAB-CLIENT");
+  await page.getByLabel("IPv4 address").fill("10.5.0.10");
+  await page.getByRole("button", { name: /^Save$/ }).click();
+  await expect(page.getByRole("button", { name: "Select LAB-CLIENT" })).toBeVisible();
+
+  const objectives = page.locator(".mission-objective");
+  await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
+  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
+  await objectives.nth(1).getByRole("button", { name: "Trace route" }).click();
+  await expect(page.getByText("2/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("Route: LAB-CLIENT -> EDGE-ROUTER -> WEB-SERVER", { exact: true })).toBeVisible();
+});
+
 test("searches packet traces and exports a packet-event report", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Run ping simulation" }).click();
