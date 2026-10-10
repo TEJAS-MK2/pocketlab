@@ -24,9 +24,9 @@ test("guided progress follows device edits, persists locally, and supports expor
 
   const objectives = page.locator(".mission-objective");
   await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
-  await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
   await objectives.nth(1).getByRole("button", { name: "Trace route" }).click();
-  await expect(page.getByText("2/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("2/4 COMPLETE")).toBeVisible();
   await expect(page.getByText("Route: LAB-CLIENT -> EDGE-ROUTER -> WEB-SERVER", { exact: true })).toBeVisible();
 
   await page.reload();
@@ -37,9 +37,9 @@ test("guided progress follows device edits, persists locally, and supports expor
   expect(download.suggestedFilename()).toBe("packetlab-mission-progress.json");
 
   await page.getByRole("button", { name: "Reset progress" }).click();
-  await expect(page.getByText("0/3 COMPLETE")).toBeVisible();
+  await expect(page.getByText("0/4 COMPLETE")).toBeVisible();
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
-  expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false });
+  expect(savedProgress).toEqual({ version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false });
 });
 
 test("does not award the route objective when the topology has no route", async ({ page }) => {
@@ -59,6 +59,22 @@ test("does not award the route objective when the topology has no route", async 
   await expect(page.getByText("No simulated route between those devices.", { exact: true })).toBeVisible();
   await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
   await expect(page.getByText("2/3 COMPLETE")).toHaveCount(0);
+});
+
+test("guided firewall objective requires a real simulated policy drop", async ({ page }) => {
+  await page.goto("/");
+  const firewallObjective = page.locator(".mission-objective").nth(3);
+  await firewallObjective.getByRole("button", { name: "Run check" }).click();
+  await expect(page.getByText("Block WEB-SERVER in the simulated firewall, then run this check again")).toBeVisible();
+  await expect(page.getByText("0/4 COMPLETE")).toBeVisible();
+
+  await page.getByRole("button", { name: "Allowing" }).nth(2).click();
+  await firewallObjective.getByRole("button", { name: "Run check" }).click();
+  await expect(page.getByText(/Blocked by simulated firewall policy for WEB-SERVER/)).toBeVisible();
+  await expect(page.getByText("1/4 COMPLETE")).toBeVisible();
+  const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("packetlab.mission-progress.v1")!));
+  expect(savedProgress.firewallDone).toBe(true);
+  expect(savedProgress.pingDone).toBe(false);
 });
 
 test("searches packet traces and exports a packet-event report", async ({ page }) => {

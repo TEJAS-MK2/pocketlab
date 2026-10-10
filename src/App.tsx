@@ -14,8 +14,8 @@ const STORAGE_KEY = "packetlab.workspace.v1";
 const INVALID_BACKUP_KEY = `${STORAGE_KEY}.invalid-backup`;
 const MISSION_PROGRESS_KEY = "packetlab.mission-progress.v1";
 const INVALID_MISSION_PROGRESS_KEY = `${MISSION_PROGRESS_KEY}.invalid-backup`;
-type MissionProgress = { version: 1; pingDone: boolean; routeDone: boolean; subnetDone: boolean };
-const EMPTY_MISSION_PROGRESS: MissionProgress = { version: 1, pingDone: false, routeDone: false, subnetDone: false };
+type MissionProgress = { version: 1; pingDone: boolean; routeDone: boolean; subnetDone: boolean; firewallDone: boolean };
+const EMPTY_MISSION_PROGRESS: MissionProgress = { version: 1, pingDone: false, routeDone: false, subnetDone: false, firewallDone: false };
 
 function readMissionProgress(): MissionProgress {
   let raw: string | null = null;
@@ -26,14 +26,16 @@ function readMissionProgress(): MissionProgress {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid progress data");
     const candidate = parsed as Partial<MissionProgress>;
     if (candidate.version !== 1 || typeof candidate.pingDone !== "boolean" ||
-        typeof candidate.routeDone !== "boolean" || typeof candidate.subnetDone !== "boolean") {
+        typeof candidate.routeDone !== "boolean" || typeof candidate.subnetDone !== "boolean" ||
+        (candidate.firewallDone !== undefined && typeof candidate.firewallDone !== "boolean")) {
       throw new Error("Unsupported progress data");
     }
     return {
       version: 1,
       pingDone: candidate.pingDone,
       routeDone: candidate.routeDone,
-      subnetDone: candidate.subnetDone
+      subnetDone: candidate.subnetDone,
+      firewallDone: candidate.firewallDone === true
     };
   } catch {
     if (raw !== null) {
@@ -117,7 +119,8 @@ export default function App() {
   const missionPingDone = missionProgressState.pingDone;
   const missionRouteDone = missionProgressState.routeDone;
   const missionSubnetDone = missionProgressState.subnetDone;
-  const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone].filter(Boolean).length;
+  const missionFirewallDone = missionProgressState.firewallDone;
+  const missionProgress = [missionPingDone, missionRouteDone, missionSubnetDone, missionFirewallDone].filter(Boolean).length;
 
   function persist(next: LabSnapshot) {
     setLab(next);
@@ -153,7 +156,8 @@ export default function App() {
       objectives: {
         connectivity: missionProgressState.pingDone,
         route: missionProgressState.routeDone,
-        subnet: missionProgressState.subnetDone
+        subnet: missionProgressState.subnetDone,
+        firewall: missionProgressState.firewallDone
       }
     };
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
@@ -313,9 +317,18 @@ export default function App() {
       const result = simulatePing(lab.devices, lab.links, sourceId, destinationId, events.length + 1, lab.blockedDeviceIds);
       setActivePath(result.event.trace.map((hop) => hop.deviceId));
       setEvents((previous) => [result.event, ...previous].slice(0, 100));
-      const progressSaved = result.success && sourceId === "ws-01" && destinationId === "srv-01" && !missionProgressState.pingDone
-        ? saveMissionProgress({ ...missionProgressState, pingDone: true })
-        : true;
+      const nextMissionProgress = { ...missionProgressState };
+      let missionProgressChanged = false;
+      if (result.success && sourceId === "ws-01" && destinationId === "srv-01" && !nextMissionProgress.pingDone) {
+        nextMissionProgress.pingDone = true;
+        missionProgressChanged = true;
+      }
+      if (!result.success && sourceId === "ws-01" && destinationId === "srv-01" &&
+          result.event.message.startsWith("Blocked by simulated firewall policy for") && !nextMissionProgress.firewallDone) {
+        nextMissionProgress.firewallDone = true;
+        missionProgressChanged = true;
+      }
+      const progressSaved = missionProgressChanged ? saveMissionProgress(nextMissionProgress) : true;
       setTerminal((previous) => [...previous, `$ ${echoedCommand}`, ...result.output].slice(-120));
       setActiveTab("packets");
       setNotice(!progressSaved
@@ -561,6 +574,13 @@ export default function App() {
                   setNotice(saved ? "Subnet objective complete" : "Subnet checked, but guided progress could not be saved locally");
                 } else setNotice("Set a valid /24 subnet with 254 usable hosts first");
               }}>{missionSubnetDone ? "Verified" : "Verify subnet"}</button></div>
+              <div className={missionFirewallDone ? "mission-objective done" : "mission-objective"}><span className="mission-check">{missionFirewallDone ? <Check size={13} /> : "04"}</span><div><strong>Verify a firewall denial</strong><small>Block WEB-SERVER in the simulated firewall, then confirm its ping is dropped.</small></div><button className="secondary-button" onClick={() => {
+                if (!lab.devices.some((device) => device.id === "srv-01")) {
+                  setNotice("Restore the starter WEB-SERVER device before running this objective");
+                } else if (!lab.blockedDeviceIds.includes("srv-01")) {
+                  setNotice("Block WEB-SERVER in the simulated firewall, then run this check again");
+                } else runPing("ws-01", "srv-01");
+              }}>{missionFirewallDone ? "Check again" : "Run check"}</button></div>
             </div>
             <div className="mission-footer">{missionProgress === 3 ? "Exercise complete — you checked connectivity, route discovery, and subnet capacity." : "Hint: use the route and subnet tools to explain why a packet can or cannot reach its destination."}</div>
             <div className="mission-progress-actions">
