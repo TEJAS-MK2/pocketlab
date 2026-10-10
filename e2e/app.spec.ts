@@ -15,6 +15,10 @@ test("supports simulated route, DNS, and HTTP terminal commands", async ({ page 
   await terminal.fill("route ws-01 srv-01");
   await terminal.press("Enter");
   await expect(page.getByText(/Route: WORKSTATION-01 -> EDGE-ROUTER -> WEB-SERVER/)).toBeVisible();
+  await expect(page.getByText(/Hop 01.*WORKSTATION-01/)).toBeVisible();
+  await terminal.fill("table ws-01");
+  await terminal.press("Enter");
+  await expect(page.getByText(/Routing table for WORKSTATION-01/)).toBeVisible();
   await terminal.fill("dns srv-01");
   await terminal.press("Enter");
   await expect(page.getByText(/web-server\.lab -> 192\.168\.10\.20/)).toBeVisible();

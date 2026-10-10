@@ -51,6 +51,7 @@ export default function App() {
   const [selectedDestination, setSelectedDestination] = useState(() => lab.devices.find((device) => device.kind === "server" && device.id !== lab.devices[0]?.id)?.id ?? lab.devices.find((device) => device.id !== lab.devices[0]?.id)?.id ?? lab.devices[0]?.id ?? "");
   const [notice, setNotice] = useState(startup.notice);
   const [activeTab, setActiveTab] = useState<"topology" | "packets">("topology");
+  const [activePath, setActivePath] = useState<string[]>([]);
   const [filter, setFilter] = useState("all");
   const fileInput = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -158,6 +159,25 @@ export default function App() {
     setNotice("Network link removed");
   }
 
+  function handleDeviceKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, deviceId: string) {
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]
+    };
+    const movement = moves[event.key];
+    if (!movement) return;
+    event.preventDefault();
+    const step = event.shiftKey ? 5 : 2;
+    const [dx, dy] = movement.map((value) => value * step);
+    const next = {
+      ...lab,
+      devices: lab.devices.map((device) => device.id === deviceId
+        ? { ...device, x: Math.max(5, Math.min(95, device.x + dx)), y: Math.max(12, Math.min(88, device.y + dy)) }
+        : device)
+    };
+    persist(next);
+    setNotice("Topology position moved with keyboard");
+  }
+
   function handleCanvasPointerDown(event: PointerEvent<HTMLDivElement>) {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -235,7 +255,7 @@ export default function App() {
     const [verb, ...args] = input.split(/\s+/);
     const output: string[] = [`$ ${input}`];
     if (verb === "help") {
-      output.push("help                 Show this command list", "devices              List virtual devices", "ip <device-id>       Show a device address", "ping <source> <dest> Simulate an ICMP echo request", "route <src> <dest>   Show a simulated path", "dns <device-id>      Resolve a lab device name", "http <server-id>     Request a simulated web page", "clear                Clear terminal output");
+      output.push("help                 Show this command list", "devices              List virtual devices", "ip <device-id>       Show a device address", "ping <source> <dest> Simulate an ICMP echo request", "route <src> <dest>   Trace a simulated path hop-by-hop", "table <device-id>    Inspect directly connected routes", "dns <device-id>      Resolve a lab device name", "http <server-id>     Request a simulated web page", "clear                Clear terminal output");
     } else if (verb === "devices") {
       output.push(...lab.devices.map((device) => `${device.id.padEnd(12)} ${device.ip.padEnd(16)} ${device.name}`));
     } else if (verb === "ip" && args.length === 1) {
@@ -255,8 +275,36 @@ export default function App() {
       setCommand("");
       return;
     } else if (verb === "route" && args.length === 2) {
-      const path = findPath(lab.devices, lab.links, args[0], args[1]);
-      output.push(path ? "Route: " + path.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> ") : "No simulated route between those devices.");
+      const resolveEndpoint = (value: string) => lab.devices.find((device) => device.id === value || device.ip === value);
+      const source = resolveEndpoint(args[0]);
+      const destination = resolveEndpoint(args[1]);
+      const path = source && destination ? findPath(lab.devices, lab.links, source.id, destination.id) : null;
+      setActivePath(path ?? []);
+      if (path) {
+        output.push("Route: " + path.map((id) => lab.devices.find((device) => device.id === id)?.name ?? id).join(" -> "));
+        output.push(...path.map((id, index) => {
+          const device = lab.devices.find((item) => item.id === id);
+          return `Hop ${String(index + 1).padStart(2, "0")}  ${(device?.name ?? id).padEnd(20)} ${device?.ip ?? "unknown"}  ${device?.kind ?? "device"}`;
+        }));
+      } else {
+        output.push("No simulated route between those devices.");
+      }
+    } else if (verb === "table" && args.length === 1) {
+      const target = lab.devices.find((device) => device.id === args[0] || device.ip === args[0]);
+      if (!target) {
+        output.push(`Device "${args[0]}" not found. Use a device ID or IPv4 address.`);
+      } else {
+        const adjacentIds = lab.links.flatMap((link) => link.from === target.id ? [link.to] : link.to === target.id ? [link.from] : []);
+        output.push(`Routing table for ${target.name} (${target.ip})`);
+        output.push("TYPE     DESTINATION        NEXT HOP            INTERFACE");
+        if (adjacentIds.length) {
+          output.push(...adjacentIds.map((id) => {
+            const neighbor = lab.devices.find((device) => device.id === id);
+            return `DIRECT   ${neighbor?.ip.padEnd(19) ?? "unknown".padEnd(19)} ${neighbor?.name.padEnd(19) ?? "unknown".padEnd(19)} eth0`;
+          }));
+        } else output.push("No directly connected routes.");
+        output.push("Note: this is a simulated, directly-connected routing table.");
+      }
     } else if (verb === "dns" && args.length === 1) {
       const device = lab.devices.find((item) => item.id === args[0] || item.name.toLowerCase() === args[0].toLowerCase());
       output.push(device ? device.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-") + ".lab -> " + device.ip + " (simulated DNS)" : "Name not found in the simulated lab.");
@@ -352,7 +400,8 @@ export default function App() {
                 const from = lab.devices.find((device) => device.id === link.from);
                 const to = lab.devices.find((device) => device.id === link.to);
                 if (!from || !to) return null;
-                return <g key={link.id}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="network-link" /></g>;
+                const onPath = activePath.some((id, index) => index < activePath.length - 1 && ((activePath[index] === link.from && activePath[index + 1] === link.to) || (activePath[index] === link.to && activePath[index + 1] === link.from)));
+                return <g key={link.id}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className={onPath ? "network-link on-path" : "network-link"} /></g>;
               })}</svg>
               {lab.links.map((link) => {
                 const from = lab.devices.find((device) => device.id === link.from);
@@ -363,18 +412,18 @@ export default function App() {
               })}
               {lab.devices.map((device) => {
                 const Icon = deviceIcon(device.kind);
-                return <button key={device.id} className={selectedSource === device.id ? "canvas-device is-selected" : "canvas-device"} data-device-id={device.id} style={{ left: `${device.x}%`, top: `${device.y}%`, touchAction: "none" }} onClick={() => setSelectedSource(device.id)} aria-label={`Select ${device.name}`}><span className={`canvas-device-icon ${device.kind}`}><Icon size={20} /></span><strong>{device.name}</strong><small>{device.ip}</small><span className="canvas-device-port" /></button>;
+                return <button key={device.id} className={`canvas-device ${selectedSource === device.id ? "is-selected" : ""} ${activePath.includes(device.id) ? "on-path" : ""}`} data-device-id={device.id} style={{ left: `${device.x}%`, top: `${device.y}%`, touchAction: "none" }} onClick={() => setSelectedSource(device.id)} onKeyDown={(event) => handleDeviceKeyDown(event, device.id)} aria-label={`Select ${device.name}`} aria-describedby="topology-keyboard-hint" title="Use arrow keys to move; hold Shift to move faster"><span className={`canvas-device-icon ${device.kind}`}><Icon size={20} /></span><strong>{device.name}</strong><small>{device.ip}</small><span className="canvas-device-port" /></button>;
               })}
               <div className="canvas-label canvas-label-top"><span className="status-pip" /> SIMULATION READY</div><div className="canvas-label canvas-label-bottom">LAN / 192.168.10.0/24</div>
             </div>
-            <div className="topology-footer"><span><span className="status-pip" /> All systems simulated</span><span>Drag devices to reposition · saved locally</span></div>
+            <div className="topology-footer"><span><span className="status-pip" /> All systems simulated</span><span id="topology-keyboard-hint">Drag devices or focus one and use arrow keys · saved locally</span></div>
           </section>
 
           <section className="panel console-panel">
             <div className="panel-header"><div><span className="panel-kicker">02 / COMMAND LINE</span><h2><TerminalSquare size={17} /> Virtual terminal</h2><span className="field-hint">Commands: help, devices, ip, ping, route, dns, http, clear</span></div><div className="panel-tools"><span className="terminal-badge">SANDBOXED</span><button className="tiny-icon" title="Clear terminal" aria-label="Clear terminal" onClick={() => setTerminal([])}><Trash2 size={15} /></button></div></div>
             <div className="terminal-output" role="log" aria-live="polite" aria-relevant="additions" aria-atomic="false">{terminal.map((line, index) => <div key={`${index}-${line}`} className={line.startsWith("$") ? "terminal-line command-line" : "terminal-line"}>{line}</div>)}</div>
             <form className="terminal-input" onSubmit={(event) => { event.preventDefault(); runCommand(); }}><span className="prompt-symbol">›</span><input value={command} onChange={(event) => setCommand(event.target.value)} placeholder="Type a command… (try help)" aria-label="Virtual terminal command" autoComplete="off" /><button type="submit" title="Run command" aria-label="Run command"><ArrowRight size={17} /></button></form>
-            <div className="quick-commands"><span>QUICK RUN</span><button onClick={() => runCommand("devices")}>devices</button><button onClick={runQuickPing}>ping {selectedSource || "source"} {selectedDestination || "destination"}</button><button onClick={() => runCommand("route ws-01 srv-01")}>route ws-01 srv-01</button><button onClick={() => runCommand("dns srv-01")}>dns srv-01</button><button onClick={() => runCommand("http srv-01")}>http srv-01</button><button onClick={() => runCommand("help")}>help</button></div>
+            <div className="quick-commands"><span>QUICK RUN</span><button onClick={() => runCommand("devices")}>devices</button><button onClick={runQuickPing}>ping {selectedSource || "source"} {selectedDestination || "destination"}</button><button onClick={() => runCommand(`route ${selectedSource} ${selectedDestination}`)}>route selected</button><button onClick={() => runCommand("dns srv-01")}>dns srv-01</button><button onClick={() => runCommand("http srv-01")}>http srv-01</button><button onClick={() => runCommand("help")}>help</button></div>
           </section>
 
           <section className="panel mission-panel">

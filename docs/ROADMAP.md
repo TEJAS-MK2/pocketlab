@@ -14,7 +14,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] GitHub Pages deployment workflow and first verified deployment
 - [x] Add Playwright browser-level regression and offline startup tests (verified green in GitHub Actions)
-- [ ] Complete accessibility audit and add keyboard controls for topology positioning
+- [x] Add keyboard controls for topology positioning (arrow keys; Shift for larger moves)
+- [ ] Complete a full accessibility audit
 - [ ] Add storage migrations and autosave recovery tests
 
 ## Phase 1 — Network fundamentals
@@ -24,7 +25,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Subnet calculator, CIDR helpers, and duplicate-IP protection in the device editor
 - [x] Shortest-path route discovery
 - [x] Simulated DNS and HTTP services
-- [ ] Routing tables and hop-by-hop packet-path visualization
+- [x] Simulated directly-connected routing table and hop-by-hop path highlighting
 - [x] Local firewall deny/allow policy that changes simulated ping outcomes
 - [ ] Rule-hit counters and more advanced policy matching
 - [x] Scenario save/load through validated local JSON import/export
@@ -37,7 +38,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [ ] Event timeline, filters, and exportable reports
 - [ ] Explainable simulations and deterministic scenario replay
 - [ ] Progress stored locally with reset/export controls
-- [ ] Accessibility, keyboard navigation, reduced-motion, and screen-reader checks
+- [x] Keyboard topology movement, terminal log announcements, focus indicators, and reduced-motion support
+- [ ] Complete a broader screen-reader and browser accessibility audit
 
 ## Phase 3 — Platform hardening
 
