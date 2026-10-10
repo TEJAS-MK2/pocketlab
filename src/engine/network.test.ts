@@ -192,6 +192,29 @@ describe("lab file validation", () => {
     expect(imported.devices[0].name).toBe("LAB-HOST");
   });
 
+  it("accepts a lab at the 200-device and 2,000-link limits", () => {
+    const devices = Array.from({ length: 200 }, (_, index) => ({
+      ...starterLab.devices[0],
+      id: `device-${index}`,
+      name: `DEVICE-${index}`,
+      ip: `10.0.0.${index + 1}`,
+      x: (index % 20) * 5,
+      y: Math.floor(index / 20) * 10
+    }));
+    const links = Array.from({ length: 2000 }, (_, index) => {
+      const fromIndex = index % 200;
+      const offset = Math.floor(index / 200) + 1;
+      return {
+        id: `edge-${index}`,
+        from: `device-${fromIndex}`,
+        to: `device-${(fromIndex + offset) % 200}`
+      };
+    });
+    const validated = validateLab({ version: 1, devices, links });
+    expect(validated.devices).toHaveLength(200);
+    expect(validated.links).toHaveLength(2000);
+  });
+
   it("rejects workspaces with excessive link counts", () => {
     expect(() => validateLab({
       version: 1,
@@ -238,7 +261,16 @@ describe("CIDR subnet calculator", () => {
     });
   });
 
-  it("handles /31 and /32 prefixes", () => {
+  it("handles /0, /31 and /32 prefixes", () => {
+    expect(calculateSubnet("255.255.255.255/0")).toEqual({
+      network: "0.0.0.0",
+      netmask: "0.0.0.0",
+      broadcast: "255.255.255.255",
+      firstHost: "0.0.0.1",
+      lastHost: "255.255.255.254",
+      usableHosts: 4294967294,
+      prefix: 0
+    });
     expect(calculateSubnet("10.0.0.0/31")?.usableHosts).toBe(2);
     expect(calculateSubnet("10.0.0.1/32")?.usableHosts).toBe(1);
   });

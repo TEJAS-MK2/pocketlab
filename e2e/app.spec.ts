@@ -75,6 +75,12 @@ test("calculates a subnet and preserves the current lab after malformed import",
     buffer: Buffer.from(JSON.stringify({ version: 99, devices: [], links: [] }))
   });
   await expect(page.getByText(/Unsupported lab format/)).toBeVisible();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "oversized-lab.json",
+    mimeType: "application/json",
+    buffer: Buffer.alloc(1_000_001, 0x20)
+  });
+  await expect(page.getByText("Lab files must be smaller than 1 MB.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Select WORKSTATION-01" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select WEB-SERVER" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("packetlab.workspace.v1"))).toBe(before);

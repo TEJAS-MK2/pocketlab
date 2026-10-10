@@ -48,8 +48,10 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 ## Phase 3 — Platform hardening
 
 - [x] Import validation for blank/unsafe IDs, control characters, duplicate records, and excessive link counts
+- [x] Oversized (over 1 MB) import rejection verified to preserve the active workspace
 - [ ] Import fuzz tests and malformed-file corpus
-- [ ] Performance budgets and large-topology stress tests
+- [x] Boundary stress test for a maximum-sized 200-device / 2,000-link lab
+- [ ] Formal performance budgets for large-topology operations
 - [ ] Content Security Policy review and dependency audit automation improvements
 - [ ] Browser compatibility matrix and mobile usability pass
 - [ ] Versioned data migrations and backup recovery UX
