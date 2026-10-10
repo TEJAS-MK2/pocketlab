@@ -48,6 +48,8 @@ test("does not award the route objective when the topology has no route", async 
   await objectives.nth(0).getByRole("button", { name: "Run ping" }).click();
   await expect(page.getByText("1/3 COMPLETE")).toBeVisible();
 
+  // The ping objective switches the inspector to Packets; return to Overview to edit links.
+  await page.getByRole("button", { name: /Overview/ }).click();
   await page.getByRole("button", { name: "Remove link ln-01" }).click();
   await page.getByRole("button", { name: "Remove link ln-02" }).click();
   const terminal = page.getByLabel("Virtual terminal command");
