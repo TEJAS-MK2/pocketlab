@@ -231,6 +231,7 @@ export default function App() {
     const echoedCommand = typedCommand ?? `ping ${sourceId} ${destinationId}`;
     try {
       const result = simulatePing(lab.devices, lab.links, sourceId, destinationId, events.length + 1, lab.blockedDeviceIds);
+      setActivePath(findPath(lab.devices, lab.links, sourceId, destinationId) ?? []);
       setEvents((previous) => [result.event, ...previous].slice(0, 100));
       setTerminal((previous) => [...previous, `$ ${echoedCommand}`, ...result.output].slice(-120));
       setActiveTab("packets");

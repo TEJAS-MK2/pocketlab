@@ -14,6 +14,7 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] GitHub Pages deployment workflow and first verified deployment
 - [x] Add Playwright browser-level regression and offline startup tests (verified green in GitHub Actions)
+- [x] Verify corrupted-storage backup, malformed-import preservation, keyboard topology movement, ping-path highlighting, and mobile overflow behavior
 - [x] Add keyboard controls for topology positioning (arrow keys; Shift for larger moves)
 - [ ] Complete a full accessibility audit
 - [ ] Add storage migrations and autosave recovery tests

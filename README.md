@@ -15,7 +15,7 @@ PacketLab is an educational environment for building virtual network topologies,
 - Keyboard topology positioning (arrow keys; Shift for larger steps), reduced-motion support, and visible focus states.
 - Local firewall deny rules that persist with a lab and affect simulated ping results.
 - A guided connectivity exercise with locally tracked progress.
-- Local workspace persistence using browser storage.
+- Local workspace persistence using browser storage, with a raw-data backup when saved workspace JSON is corrupt.
 - Validated JSON import/export with a 1 MB import limit, non-empty command-safe IDs, control-character rejection, and model limits of 200 devices / 2,000 links.
 - Offline app-shell caching after the first successful online visit.
 - Installed-app icons for standard, maskable, and Apple touch launchers.
