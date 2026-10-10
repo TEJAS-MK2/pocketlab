@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectedComponent, isValidIPv4, simulatePing, starterLab, validateLab } from "./network";
+import { calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab } from "./network";
 
 describe("IPv4 validation", () => {
   it("accepts canonical IPv4 addresses", () => {
@@ -72,5 +72,42 @@ describe("lab file validation", () => {
 
   it("rejects unsupported versions", () => {
     expect(() => validateLab({ version: 99, devices: [], links: [] })).toThrow("Unsupported lab format.");
+  });
+});
+
+
+describe("route discovery", () => {
+  it("returns the shortest path through connected devices", () => {
+    expect(findPath(starterLab.devices, starterLab.links, "ws-01", "srv-01")).toEqual(["ws-01", "rt-01", "srv-01"]);
+  });
+
+  it("returns null when a device is missing or disconnected", () => {
+    expect(findPath(starterLab.devices, [], "ws-01", "srv-01")).toBeNull();
+    expect(findPath(starterLab.devices, starterLab.links, "missing", "srv-01")).toBeNull();
+  });
+});
+
+describe("CIDR subnet calculator", () => {
+  it("calculates a /24 network correctly", () => {
+    expect(calculateSubnet("192.168.10.44/24")).toEqual({
+      network: "192.168.10.0",
+      netmask: "255.255.255.0",
+      broadcast: "192.168.10.255",
+      firstHost: "192.168.10.1",
+      lastHost: "192.168.10.254",
+      usableHosts: 254,
+      prefix: 24
+    });
+  });
+
+  it("handles /31 and /32 prefixes", () => {
+    expect(calculateSubnet("10.0.0.0/31")?.usableHosts).toBe(2);
+    expect(calculateSubnet("10.0.0.1/32")?.usableHosts).toBe(1);
+  });
+
+  it("rejects malformed CIDR inputs", () => {
+    for (const input of ["192.168.1.1", "256.1.1.1/24", "10.0.0.1/33", "10.0.0.1/-1"]) {
+      expect(calculateSubnet(input)).toBeNull();
+    }
   });
 });
