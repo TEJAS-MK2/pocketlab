@@ -83,7 +83,7 @@ PacketLab is a learning simulator, not a real network scanner or a substitute fo
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] Offline app-shell caching
 - [x] GitHub Pages deployment workflow
-- [ ] Verify browser regression and offline tests pass in GitHub Actions
+- [x] Playwright browser regression and offline tests verified green in GitHub Actions
 - [x] Device property editor, drag-and-drop, and link management
 - [x] Subnet calculator, route discovery, simulated DNS/HTTP
 - [x] Guided defensive-networking exercise
