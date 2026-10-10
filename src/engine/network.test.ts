@@ -41,6 +41,8 @@ describe("network connectivity simulation", () => {
     expect(result.success).toBe(true);
     expect(result.event.status).toBe("delivered");
     expect(result.output.join("\n")).toContain("0% packet loss");
+    expect(result.event.trace.map((hop) => hop.name)).toEqual(["WORKSTATION-01", "EDGE-ROUTER", "WEB-SERVER"]);
+    expect(result.event.trace.map((hop) => hop.ip)).toEqual(["192.168.10.10", "192.168.10.1", "192.168.10.20"]);
   });
 
   it("reports route-aware TTL and deterministic per-hop latency", () => {
@@ -59,12 +61,14 @@ describe("network connectivity simulation", () => {
     expect(result.success).toBe(false);
     expect(result.event.status).toBe("dropped");
     expect(result.output.join("\n")).toContain("100% packet loss");
+    expect(result.event.trace).toEqual([]);
   });
 
   it("delivers a same-device ping", () => {
     const result = simulatePing(starterLab.devices, starterLab.links, "ws-01", "ws-01");
     expect(result.success).toBe(true);
     expect(result.event.status).toBe("delivered");
+    expect(result.event.trace.map((hop) => hop.deviceId)).toEqual(["ws-01"]);
     expect(result.output.join("\\n")).toContain("1 packet transmitted, 1 received.");
   });
 
@@ -253,6 +257,7 @@ describe("simulated firewall rules", () => {
     expect(result.success).toBe(false);
     expect(result.event.status).toBe("dropped");
     expect(result.event.message).toContain("simulated firewall policy");
+    expect(result.event.trace.map((hop) => hop.deviceId)).toEqual(["ws-01", "rt-01", "srv-01"]);
   });
 
   it("keeps old version-one imports compatible without firewall rules", () => {

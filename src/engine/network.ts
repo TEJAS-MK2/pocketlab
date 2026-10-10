@@ -15,6 +15,12 @@ export interface LabLink {
   to: string;
 }
 
+export interface LabPacketHop {
+  deviceId: string;
+  name: string;
+  ip: string;
+}
+
 export interface LabPacketEvent {
   id: string;
   time: string;
@@ -23,6 +29,7 @@ export interface LabPacketEvent {
   protocol: "ICMP" | "DNS" | "TCP" | "SYSTEM";
   status: "delivered" | "dropped" | "info";
   message: string;
+  trace: LabPacketHop[];
 }
 
 export const MAX_LAB_DEVICES = 200;
@@ -109,44 +116,63 @@ export function simulatePing(
     throw new Error("Choose a source and destination that exist in this lab.");
   }
 
+  const sourceHop: LabPacketHop = { deviceId: source.id, name: source.name, ip: source.ip };
   if (source.id === destination.id) {
     const message = "Source and destination are the same device.";
     return {
       success: true,
-      event: { id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "delivered", message },
+      event: {
+        id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+        protocol: "ICMP", status: "delivered", message, trace: [sourceHop]
+      },
       output: [`PING ${destination.ip} from ${source.ip}`, "Reply from local interface: 0.2 ms", "1 packet transmitted, 1 received."]
     };
   }
 
-  if (blockedDeviceIds.includes(destination.id)) {
-    const message = "Blocked by simulated firewall policy for " + destination.name + ".";
+  const route = findPath(devices, links, source.id, destination.id);
+  if (!route) {
+    const message = `No route to host ${destination.ip}; packet dropped by the simulated network.`;
     return {
       success: false,
-      event: { id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "dropped", message },
-      output: ["PING " + destination.ip + " from " + source.ip, "Firewall policy denied the simulated packet.", "1 packet transmitted, 0 received, policy drop."]
+      event: {
+        id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+        protocol: "ICMP", status: "dropped", message, trace: []
+      },
+      output: [`PING ${destination.ip} from ${source.ip}`, "Request timed out.", "1 packet transmitted, 0 received, 100% packet loss."]
     };
   }
 
-  const route = findPath(devices, links, source.id, destination.id);
-  const reachable = route !== null;
-  const message = reachable
-    ? `ICMP echo reply received from ${destination.ip}`
-    : `No route to host ${destination.ip}; packet dropped by the simulated network.`;
+  const devicesById = new Map(devices.map((device) => [device.id, device]));
+  const trace: LabPacketHop[] = route.flatMap((id) => {
+    const device = devicesById.get(id);
+    return device ? [{ deviceId: device.id, name: device.name, ip: device.ip }] : [];
+  });
 
+  if (blockedDeviceIds.includes(destination.id)) {
+    const message = `Blocked by simulated firewall policy for ${destination.name}.`;
+    return {
+      success: false,
+      event: {
+        id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+        protocol: "ICMP", status: "dropped", message, trace
+      },
+      output: [`PING ${destination.ip} from ${source.ip}`, "Firewall policy denied the simulated packet.", "1 packet transmitted, 0 received, policy drop."]
+    };
+  }
+
+  const message = `ICMP echo reply received from ${destination.ip}`;
+  const hops = route.length - 1;
   return {
-    success: reachable,
+    success: true,
     event: {
-      id: createEventId(),
-      time: new Date().toISOString(),
-      source: source.ip,
-      destination: destination.ip,
-      protocol: "ICMP",
-      status: reachable ? "delivered" : "dropped",
-      message
+      id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+      protocol: "ICMP", status: "delivered", message, trace
     },
-    output: reachable
-      ? [`PING ${destination.ip} from ${source.ip}`, `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=${Math.max(1, 64 - ((route?.length ?? 1) - 1))} time=${Math.max(1, ((route?.length ?? 1) - 1) * 1.2).toFixed(1)} ms`, "1 packet transmitted, 1 received, 0% packet loss."]
-      : [`PING ${destination.ip} from ${source.ip}`, "Request timed out.", "1 packet transmitted, 0 received, 100% packet loss."]
+    output: [
+      `PING ${destination.ip} from ${source.ip}`,
+      `64 bytes from ${destination.ip}: icmp_seq=${sequence} ttl=${Math.max(1, 64 - hops)} time=${Math.max(1, hops * 1.2).toFixed(1)} ms`,
+      "1 packet transmitted, 1 received, 0% packet loss."
+    ]
   };
 }
 

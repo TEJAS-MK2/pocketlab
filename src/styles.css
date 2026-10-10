@@ -182,3 +182,13 @@ h1{font-size:25px;letter-spacing:-.5px;font-weight:650;color:#1e2d38}
 @media(min-width:1600px){.workspace{grid-template-columns:220px minmax(500px,1fr) 310px}.main-area{padding-left:30px;padding-right:30px}}
 @media(max-width:720px){.topbar{padding:0 10px}.topbar-actions{gap:5px}.main-area{padding:17px 10px 22px}.metrics-row{gap:6px}.topology-canvas{height:295px}.canvas-device{min-width:98px;padding:7px 6px}.inspector-header{padding:16px 12px 11px}.inspector-tabs{padding-inline:12px}.inspector-content{padding-inline:12px}.panel-header{padding:10px 11px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Packet events keep a snapshot of the simulated path for explainable, historical inspection. */
+.event-trace{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:9px 0 3px}
+.event-trace-label{font:8px var(--mono);letter-spacing:.5px;color:#6c7d89}
+.event-trace-hop{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%;padding:4px 5px;border:1px solid #d5dfe5;border-radius:3px;background:#f4f6f8}
+.event-trace-node{display:flex;flex-direction:column;min-width:0;gap:2px}
+.event-trace-node strong{font-size:8px;color:#344d5c;overflow-wrap:anywhere}
+.event-trace-node small{font:7px var(--mono);color:#687c88;overflow-wrap:anywhere}
+.event-trace-hop svg{flex-shrink:0;color:#728c9e}

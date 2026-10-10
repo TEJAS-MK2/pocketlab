@@ -8,6 +8,11 @@ test("loads the lab, simulates ping, and shows the packet event", async ({ page 
   await expect(page.getByText("delivered", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/ICMP echo reply received from 192\.168\.10\.20/)).toBeVisible();
   await expect(page.locator(".canvas-device.on-path")).toHaveCount(3);
+  const pathTrace = page.locator('[aria-label="Simulated packet path"] .event-trace-hop');
+  await expect(pathTrace).toHaveCount(3);
+  await expect(pathTrace.nth(0)).toContainText("WORKSTATION-01");
+  await expect(pathTrace.nth(1)).toContainText("EDGE-ROUTER");
+  await expect(pathTrace.nth(2)).toContainText("WEB-SERVER");
 });
 
 test("supports simulated route, DNS, and HTTP terminal commands", async ({ page }) => {
