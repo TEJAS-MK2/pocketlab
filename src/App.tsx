@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
   Activity, ArrowRight, Check, ChevronDown, CircleHelp,
   Command, Cpu, Download, FileUp, Filter, Globe, Laptop, Link2, Network,
-  Play, Plus, RadioTower, RotateCcw, Route, Save, Server, ShieldCheck, TerminalSquare,
+  Play, Plus, RadioTower, RotateCcw, Save, Server, ShieldCheck, TerminalSquare,
   Trash2, Waypoints, X
 } from "lucide-react";
 import {
@@ -113,7 +113,7 @@ export default function App() {
     setNotice("Network link removed");
   }
 
-  function handleCanvasPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handleCanvasPointerDown(event: PointerEvent<HTMLDivElement>) {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const deviceElement = target.closest<HTMLButtonElement>(".canvas-device");
