@@ -34,6 +34,20 @@ describe("network connectivity simulation", () => {
     expect(result.output.join("\n")).toContain("100% packet loss");
   });
 
+  it("delivers a same-device ping", () => {
+    const result = simulatePing(starterLab.devices, starterLab.links, "ws-01", "ws-01");
+    expect(result.success).toBe(true);
+    expect(result.event.status).toBe("delivered");
+    expect(result.output.join("\\n")).toContain("1 packet transmitted, 1 received.");
+  });
+
+  it("generates unique event IDs even after the visible event list would be capped", () => {
+    const ids = Array.from({ length: 150 }, () =>
+      simulatePing(starterLab.devices, starterLab.links, "ws-01", "srv-01", 1).event.id
+    );
+    expect(new Set(ids).size).toBe(150);
+  });
+
   it("rejects missing endpoints", () => {
     expect(() => simulatePing(starterLab.devices, starterLab.links, "missing", "srv-01")).toThrow();
   });
@@ -42,6 +56,66 @@ describe("network connectivity simulation", () => {
 describe("lab file validation", () => {
   it("accepts the starter lab", () => {
     expect(validateLab(starterLab).devices).toHaveLength(3);
+  });
+
+  it("rejects non-object JSON input", () => {
+    expect(() => validateLab(null)).toThrow("Lab file must contain a JSON object.");
+    expect(() => validateLab([])).toThrow("Lab file must contain a JSON object.");
+    expect(() => validateLab("not an object")).toThrow("Lab file must contain a JSON object.");
+  });
+
+  it("rejects duplicate IP addresses", () => {
+    const invalid = {
+      ...starterLab,
+      devices: starterLab.devices.map((device, index) => index === 1
+        ? { ...device, ip: starterLab.devices[0].ip }
+        : device)
+    };
+    expect(() => validateLab(invalid)).toThrow("duplicate device IP");
+  });
+
+  it("rejects duplicate and reversed-duplicate links", () => {
+    const devices = starterLab.devices;
+    expect(() => validateLab({
+      version: 1,
+      devices,
+      links: [
+        { id: "link-one", from: "ws-01", to: "rt-01" },
+        { id: "link-two", from: "ws-01", to: "rt-01" }
+      ]
+    })).toThrow("duplicate or reversed-duplicate links");
+    expect(() => validateLab({
+      version: 1,
+      devices,
+      links: [
+        { id: "link-one", from: "ws-01", to: "rt-01" },
+        { id: "link-two", from: "rt-01", to: "ws-01" }
+      ]
+    })).toThrow("duplicate or reversed-duplicate links");
+  });
+
+  it("rejects overlong names and IDs and labs over 200 devices", () => {
+    expect(() => validateLab({
+      version: 1, devices: [{ ...starterLab.devices[0], name: "N".repeat(65) }], links: []
+    })).toThrow("invalid device");
+    expect(() => validateLab({
+      version: 1, devices: [{ ...starterLab.devices[0], id: "i".repeat(65) }], links: []
+    })).toThrow("invalid device");
+    expect(() => validateLab({
+      version: 1, devices: Array.from({ length: 201 }, (_, i) => ({ ...starterLab.devices[0], id: `d${i}`, ip: `10.0.${Math.floor(i / 254)}.${i % 254 + 1}` })), links: []
+    })).toThrow("200 devices");
+  });
+
+  it("returns only known fields from imported data", () => {
+    const dirty = JSON.parse(JSON.stringify(starterLab)) as Record<string, unknown>;
+    dirty.unexpectedRoot = true;
+    (dirty.devices as Array<Record<string, unknown>>)[0].unexpectedDeviceField = true;
+    (dirty.links as Array<Record<string, unknown>>)[0].unexpectedLinkField = true;
+    const clean = validateLab(dirty);
+    expect(clean).toEqual(starterLab);
+    expect("unexpectedDeviceField" in clean.devices[0]).toBe(false);
+    expect("unexpectedLinkField" in clean.links[0]).toBe(false);
+    expect("unexpectedRoot" in clean).toBe(false);
   });
 
   it("rejects device coordinates outside the topology canvas", () => {

@@ -1,35 +1,55 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
-  Activity, ArrowRight, Check, ChevronDown, CircleHelp,
+  Activity, ArrowRight, Check, CircleHelp,
   Command, Cpu, Download, FileUp, Filter, Globe, Laptop, Link2, Network,
   Play, Plus, RadioTower, RotateCcw, Save, Server, ShieldCheck, TerminalSquare,
   Trash2, Waypoints, X
 } from "lucide-react";
 import {
   type DeviceKind, type LabDevice, type LabPacketEvent, type LabSnapshot,
-  calculateSubnet, findPath, isValidIPv4, simulatePing, starterLab, validateLab
+  calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
 
 const STORAGE_KEY = "packetlab.workspace.v1";
+const INVALID_BACKUP_KEY = `${STORAGE_KEY}.invalid-backup`;
 const deviceIcon = (kind: DeviceKind) => kind === "router" ? RadioTower : kind === "server" ? Server : Laptop;
 
-function readSavedLab(): LabSnapshot {
+function readSavedLab(): { lab: LabSnapshot; notice: string } {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? validateLab(JSON.parse(raw)) : starterLab;
+    raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === null) return { lab: starterLab, notice: "Starter topology loaded" };
+    return { lab: validateLab(JSON.parse(raw)), notice: "Saved lab restored from this device" };
   } catch {
-    return starterLab;
+    let backedUp = false;
+    if (raw !== null) {
+      try {
+        localStorage.setItem(INVALID_BACKUP_KEY, raw);
+        backedUp = true;
+      } catch {
+        // Preserve the starter lab if storage is unavailable; never overwrite the invalid original here.
+      }
+    }
+    return {
+      lab: starterLab,
+      notice: raw === null
+        ? "Local storage unavailable — starter topology loaded"
+        : backedUp
+          ? `Saved lab was invalid; raw data backed up under ${INVALID_BACKUP_KEY}`
+          : "Saved lab was invalid; raw backup could not be written"
+    };
   }
 }
 
 export default function App() {
-  const [lab, setLab] = useState<LabSnapshot>(readSavedLab);
+  const [startup] = useState(readSavedLab);
+  const [lab, setLab] = useState<LabSnapshot>(startup.lab);
   const [events, setEvents] = useState<LabPacketEvent[]>([]);
   const [terminal, setTerminal] = useState<string[]>(["PacketLab terminal v0.1.0", "Simulation environment ready.", "Type help to view available commands."]);
   const [command, setCommand] = useState("");
   const [selectedSource, setSelectedSource] = useState(() => lab.devices[0]?.id ?? "");
   const [selectedDestination, setSelectedDestination] = useState(() => lab.devices.find((device) => device.kind === "server" && device.id !== lab.devices[0]?.id)?.id ?? lab.devices.find((device) => device.id !== lab.devices[0]?.id)?.id ?? lab.devices[0]?.id ?? "");
-  const [notice, setNotice] = useState("Starter topology loaded");
+  const [notice, setNotice] = useState(startup.notice);
   const [activeTab, setActiveTab] = useState<"topology" | "packets">("topology");
   const [filter, setFilter] = useState("all");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -46,19 +66,10 @@ export default function App() {
     setEditName(selected?.name ?? "");
     setEditIp(selected?.ip ?? "");
   }, [selected?.id, selected?.name, selected?.ip]);
-  const reachableCount = useMemo(() => {
-    if (!selected) return 0;
-    const reachable = new Set<string>([selected.id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const link of lab.links) {
-        if (reachable.has(link.from) && !reachable.has(link.to)) { reachable.add(link.to); changed = true; }
-        if (reachable.has(link.to) && !reachable.has(link.from)) { reachable.add(link.from); changed = true; }
-      }
-    }
-    return reachable.size;
-  }, [lab, selected]);
+  const reachableCount = useMemo(
+    () => selected ? connectedComponent(selected.id, lab.links).size : 0,
+    [lab.links, selected?.id]
+  );
   const visibleEvents = events.filter((event) => filter === "all" || event.status === filter);
   const missionPingDone = events.some((event) => event.protocol === "ICMP" && event.status === "delivered" && event.source === "192.168.10.10" && event.destination === "192.168.10.20");
   const missionRouteDone = terminal.some((line) => line.startsWith("Route: WORKSTATION-01 -> EDGE-ROUTER -> WEB-SERVER"));
@@ -75,15 +86,34 @@ export default function App() {
   }
 
   function addDevice(kind: DeviceKind) {
+    if (lab.devices.length >= 200) {
+      setNotice("This lab has reached the 200-device limit.");
+      return;
+    }
+    const usedIPs = new Set(lab.devices.map((device) => device.ip));
+    const host = Array.from({ length: 253 }, (_, index) => index + 2)
+      .find((octet) => !usedIPs.has(`192.168.10.${octet}`));
+    if (!host) {
+      setNotice("The 192.168.10.0/24 address pool is full.");
+      return;
+    }
+    const grid = [12, 31, 50, 69, 88].flatMap((x) => [22, 50, 78].map((y) => ({ x, y })));
+    const position = grid.find(({ x, y }) => lab.devices.every((device) =>
+      Math.abs(device.x - x) >= 15 || Math.abs(device.y - y) >= 20
+    ));
+    if (!position) {
+      setNotice("No free non-overlapping topology position is available.");
+      return;
+    }
     const count = lab.devices.filter((device) => device.kind === kind).length + 1;
     const prefix = kind === "router" ? "rt" : kind === "server" ? "srv" : "ws";
     const device: LabDevice = {
-      id: `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      id: `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
       name: `${kind === "router" ? "ROUTER" : kind === "server" ? "SERVER" : "WORKSTATION"}-${String(count).padStart(2, "0")}`,
       kind,
-      ip: kind === "router" ? `192.168.10.${count + 1}` : kind === "server" ? `192.168.10.${20 + count}` : `192.168.10.${10 + count}`,
-      x: 20 + (lab.devices.length * 13) % 62,
-      y: 22 + (lab.devices.length * 19) % 55
+      ip: `192.168.10.${host}`,
+      x: position.x,
+      y: position.y
     };
     persist({ ...lab, devices: [...lab.devices, device] });
     setSelectedSource(device.id);
@@ -166,20 +196,34 @@ export default function App() {
       (link.to === selectedSource && link.from === selectedDestination)
     );
     if (exists) { setNotice("Those devices are already connected"); return; }
-    persist({ ...lab, links: [...lab.links, { id: `ln-${Date.now().toString(36)}`, from: selectedSource, to: selectedDestination }] });
+    persist({ ...lab, links: [...lab.links, { id: `ln-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`, from: selectedSource, to: selectedDestination }] });
     setNotice("Network link created");
   }
 
-  function runPing(sourceId = selectedSource, destinationId = selectedDestination) {
+  function runPing(sourceId = selectedSource, destinationId = selectedDestination, typedCommand?: string) {
+    const echoedCommand = typedCommand ?? `ping ${sourceId} ${destinationId}`;
     try {
       const result = simulatePing(lab.devices, lab.links, sourceId, destinationId, events.length + 1, lab.blockedDeviceIds);
       setEvents((previous) => [result.event, ...previous].slice(0, 100));
-      setTerminal((previous) => [...previous, `$ ping ${lab.devices.find((d) => d.id === destinationId)?.ip ?? destinationId}`, ...result.output].slice(-120));
+      setTerminal((previous) => [...previous, `$ ${echoedCommand}`, ...result.output].slice(-120));
       setActiveTab("packets");
       setNotice(result.success ? "Simulation completed · packet delivered" : "Simulation completed · packet dropped");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Simulation failed");
+      const message = error instanceof Error ? error.message : "Simulation failed";
+      setTerminal((previous) => [...previous, `$ ${echoedCommand}`, `Error: ${message}`].slice(-120));
+      setNotice(message);
     }
+  }
+
+  function runQuickPing() {
+    const source = lab.devices.find((device) => device.id === selectedSource) ?? lab.devices[0];
+    const destination = lab.devices.find((device) => device.id === selectedDestination && device.id !== source?.id)
+      ?? lab.devices.find((device) => device.id !== source?.id);
+    if (!source || !destination) {
+      setNotice("Quick ping needs at least two virtual devices.");
+      return;
+    }
+    runCommand(`ping ${source.id} ${destination.id}`);
   }
 
   function runCommand(raw = command) {
@@ -195,7 +239,16 @@ export default function App() {
       const device = lab.devices.find((item) => item.id === args[0]);
       output.push(device ? `${device.name}: ${device.ip}/24` : "Device not found.");
     } else if (verb === "ping" && args.length === 2) {
-      runPing(args[0], args[1]);
+      const resolveEndpoint = (value: string) => lab.devices.find((device) => device.id === value || device.ip === value);
+      const source = resolveEndpoint(args[0]);
+      const destination = resolveEndpoint(args[1]);
+      if (!source || !destination) {
+        if (!source) output.push(`Error: Unknown ping source "${args[0]}". Use a device ID or IPv4 address.`);
+        if (!destination) output.push(`Error: Unknown ping destination "${args[1]}". Use a device ID or IPv4 address.`);
+        setTerminal((previous) => [...previous, ...output].slice(-120));
+      } else {
+        runPing(source.id, destination.id, input);
+      }
       setCommand("");
       return;
     } else if (verb === "route" && args.length === 2) {
@@ -259,18 +312,18 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#" aria-label="PacketLab home"><span className="brand-mark"><Waypoints size={19} /></span><span>packet<span className="brand-light">lab</span></span><span className="version">PREVIEW 0.1</span></a>
-        <div className="topbar-center"><span className="live-dot" /> LOCAL SIMULATION <span className="topbar-divider">/</span> WORKSPACE <ChevronDown size={13} /></div>
-        <div className="topbar-actions"><span className="local-status"><ShieldCheck size={14} /> Local-only</span><button className="icon-button" title="Reset lab" onClick={resetLab}><RotateCcw size={16} /></button><button className="primary-button" onClick={exportLab}><Download size={15} /> Export lab</button></div>
+        <div className="brand" role="img" aria-label="PacketLab"><span className="brand-mark"><Waypoints size={19} /></span><span>packet<span className="brand-light">lab</span></span><span className="version">PREVIEW 0.1</span></div>
+        <div className="topbar-center"><span className="live-dot" /> LOCAL SIMULATION <span className="topbar-divider">/</span> WORKSPACE</div>
+        <div className="topbar-actions"><span className="local-status"><ShieldCheck size={14} /> Local-only</span><button className="icon-button" title="Reset lab" aria-label="Reset lab" onClick={resetLab}><RotateCcw size={16} /></button><button className="primary-button" onClick={exportLab}><Download size={15} /> Export lab</button></div>
       </header>
 
       <div className="workspace">
         <aside className="sidebar">
           <div className="section-label">WORKSPACE</div>
-          <button className="nav-item active"><Network size={16} /> Network studio <span className="nav-count">{lab.devices.length}</span></button>
+          <button className={activeTab === "topology" ? "nav-item active" : "nav-item"} onClick={() => setActiveTab("topology")}><Network size={16} /> Network studio <span className="nav-count">{lab.devices.length}</span></button>
           <button className="nav-item" onClick={() => setActiveTab("packets")}><Activity size={16} /> Packet observatory <span className="nav-count">{events.length}</span></button>
           <div className="side-divider" />
-          <div className="section-heading"><span>LAB DEVICES</span><button className="tiny-icon" title="Add workstation" onClick={() => addDevice("workstation")}><Plus size={15} /></button></div>
+          <div className="section-heading"><span>LAB DEVICES</span><button className="tiny-icon" title="Add workstation" aria-label="Add workstation" onClick={() => addDevice("workstation")}><Plus size={15} /></button></div>
           <div className="device-list">{lab.devices.map((device) => {
             const Icon = deviceIcon(device.kind);
             return <button key={device.id} className={selectedSource === device.id ? "device-row selected" : "device-row"} onClick={() => setSelectedSource(device.id)}><span className={`device-icon ${device.kind}`}><Icon size={15} /></span><span className="device-copy"><strong>{device.name}</strong><small>{device.ip}</small></span><span className="device-state" /></button>;
@@ -289,15 +342,22 @@ export default function App() {
           <div className="metrics-row"><div className="metric"><span className="metric-icon"><Cpu size={16} /></span><div><span>VIRTUAL DEVICES</span><strong>{String(lab.devices.length).padStart(2, "0")}</strong></div></div><div className="metric"><span className="metric-icon"><Link2 size={16} /></span><div><span>NETWORK LINKS</span><strong>{String(lab.links.length).padStart(2, "0")}</strong></div></div><div className="metric"><span className="metric-icon"><Globe size={16} /></span><div><span>REACHABLE FROM SOURCE</span><strong>{String(reachableCount).padStart(2, "0")} <small>/ {lab.devices.length}</small></strong></div></div><div className="metric"><span className="metric-icon"><Activity size={16} /></span><div><span>PACKETS OBSERVED</span><strong>{String(events.length).padStart(2, "0")}</strong></div></div></div>
 
           <section className="panel topology-panel">
-            <div className="panel-header"><div><span className="panel-kicker">01 / TOPOLOGY</span><h2>Virtual network</h2></div><div className="panel-tools"><span className="canvas-legend"><i className="legend-line" /> Link <i className="legend-dot" /> Device</span><button className="tiny-icon" title="Reset starter topology" onClick={resetLab}><RotateCcw size={15} /></button></div></div>
+            <div className="panel-header"><div><span className="panel-kicker">01 / TOPOLOGY</span><h2>Virtual network</h2></div><div className="panel-tools"><span className="canvas-legend"><i className="legend-line" /> Link <i className="legend-dot" /> Device</span><button className="tiny-icon" title="Reset starter topology" aria-label="Reset starter topology" onClick={resetLab}><RotateCcw size={15} /></button></div></div>
             <div className="topology-canvas" ref={canvasRef} onPointerDown={handleCanvasPointerDown} onPointerMove={handleCanvasPointerMove} onPointerUp={handleCanvasPointerUp} onPointerCancel={handleCanvasPointerUp}>
               <div className="canvas-grid" />
               <svg className="link-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Network connections">{lab.links.map((link) => {
                 const from = lab.devices.find((device) => device.id === link.from);
                 const to = lab.devices.find((device) => device.id === link.to);
                 if (!from || !to) return null;
-                return <g key={link.id}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="network-link" /><circle cx={(from.x + to.x) / 2} cy={(from.y + to.y) / 2} r=".7" className="link-node" /></g>;
+                return <g key={link.id}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="network-link" /></g>;
               })}</svg>
+              {lab.links.map((link) => {
+                const from = lab.devices.find((device) => device.id === link.from);
+                const to = lab.devices.find((device) => device.id === link.to);
+                return from && to
+                  ? <span key={`${link.id}-marker`} className="link-node-marker" style={{ left: `${(from.x + to.x) / 2}%`, top: `${(from.y + to.y) / 2}%` }} />
+                  : null;
+              })}
               {lab.devices.map((device) => {
                 const Icon = deviceIcon(device.kind);
                 return <button key={device.id} className={selectedSource === device.id ? "canvas-device is-selected" : "canvas-device"} data-device-id={device.id} style={{ left: `${device.x}%`, top: `${device.y}%`, touchAction: "none" }} onClick={() => setSelectedSource(device.id)} aria-label={`Select ${device.name}`}><span className={`canvas-device-icon ${device.kind}`}><Icon size={20} /></span><strong>{device.name}</strong><small>{device.ip}</small><span className="canvas-device-port" /></button>;
@@ -308,10 +368,10 @@ export default function App() {
           </section>
 
           <section className="panel console-panel">
-            <div className="panel-header"><div><span className="panel-kicker">02 / COMMAND LINE</span><h2><TerminalSquare size={17} /> Virtual terminal</h2><span className="field-hint">Commands: help, devices, ip, ping, route, dns, http, clear</span></div><div className="panel-tools"><span className="terminal-badge">SANDBOXED</span><button className="tiny-icon" title="Clear terminal" onClick={() => setTerminal([])}><Trash2 size={15} /></button></div></div>
-            <div className="terminal-output" role="log" aria-live="polite">{terminal.map((line, index) => <div key={`${index}-${line}`} className={line.startsWith("$") ? "terminal-line command-line" : "terminal-line"}>{line}</div>)}</div>
-            <form className="terminal-input" onSubmit={(event) => { event.preventDefault(); runCommand(); }}><span className="prompt-symbol">›</span><input value={command} onChange={(event) => setCommand(event.target.value)} placeholder="Type a command… (try help)" aria-label="Virtual terminal command" autoComplete="off" /><button type="submit" title="Run command"><ArrowRight size={17} /></button></form>
-            <div className="quick-commands"><span>QUICK RUN</span><button onClick={() => runCommand("devices")}>devices</button><button onClick={() => runCommand("ping ws-01 srv-01")}>ping ws-01 srv-01</button><button onClick={() => runCommand("route ws-01 srv-01")}>route ws-01 srv-01</button><button onClick={() => runCommand("dns srv-01")}>dns srv-01</button><button onClick={() => runCommand("http srv-01")}>http srv-01</button><button onClick={() => runCommand("help")}>help</button></div>
+            <div className="panel-header"><div><span className="panel-kicker">02 / COMMAND LINE</span><h2><TerminalSquare size={17} /> Virtual terminal</h2><span className="field-hint">Commands: help, devices, ip, ping, route, dns, http, clear</span></div><div className="panel-tools"><span className="terminal-badge">SANDBOXED</span><button className="tiny-icon" title="Clear terminal" aria-label="Clear terminal" onClick={() => setTerminal([])}><Trash2 size={15} /></button></div></div>
+            <div className="terminal-output" role="log" aria-live="polite" aria-relevant="additions" aria-atomic="false">{terminal.map((line, index) => <div key={`${index}-${line}`} className={line.startsWith("$") ? "terminal-line command-line" : "terminal-line"}>{line}</div>)}</div>
+            <form className="terminal-input" onSubmit={(event) => { event.preventDefault(); runCommand(); }}><span className="prompt-symbol">›</span><input value={command} onChange={(event) => setCommand(event.target.value)} placeholder="Type a command… (try help)" aria-label="Virtual terminal command" autoComplete="off" /><button type="submit" title="Run command" aria-label="Run command"><ArrowRight size={17} /></button></form>
+            <div className="quick-commands"><span>QUICK RUN</span><button onClick={() => runCommand("devices")}>devices</button><button onClick={runQuickPing}>ping {selectedSource || "source"} {selectedDestination || "destination"}</button><button onClick={() => runCommand("route ws-01 srv-01")}>route ws-01 srv-01</button><button onClick={() => runCommand("dns srv-01")}>dns srv-01</button><button onClick={() => runCommand("http srv-01")}>http srv-01</button><button onClick={() => runCommand("help")}>help</button></div>
           </section>
 
           <section className="panel mission-panel">
@@ -327,10 +387,10 @@ export default function App() {
         </main>
 
         <aside className="inspector">
-          <div className="inspector-header"><div><span className="panel-kicker">INSPECTOR</span><h2>Traffic monitor</h2></div><button className="tiny-icon" title="Filter events" onClick={() => setFilter(filter === "all" ? "dropped" : filter === "dropped" ? "delivered" : "all")}><Filter size={15} /></button></div>
+          <div className="inspector-header"><div><span className="panel-kicker">INSPECTOR</span><h2>Traffic monitor</h2></div><button className="tiny-icon" title="Filter events" aria-label="Filter events" onClick={() => setFilter(filter === "all" ? "dropped" : filter === "dropped" ? "delivered" : "all")}><Filter size={15} /></button></div>
           <div className="inspector-tabs"><button className={activeTab === "topology" ? "active" : ""} onClick={() => setActiveTab("topology")}><Waypoints size={14} /> Overview</button><button className={activeTab === "packets" ? "active" : ""} onClick={() => setActiveTab("packets")}><Activity size={14} /> Packets <span>{events.length}</span></button></div>
           <div className="inspector-content">
-            {activeTab === "topology" ? <><div className="inspector-block"><div className="section-heading"><span>SIMULATION CONTROL</span><span className="small-muted">ICMP</span></div><label className="field-label" htmlFor="source-select">Source device</label><select id="source-select" value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><label className="field-label" htmlFor="destination-select">Destination device</label><select id="destination-select" value={selectedDestination} onChange={(event) => setSelectedDestination(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><button className="run-button" onClick={() => runPing()}><Play size={15} fill="currentColor" /> Run ping simulation</button><p className="field-hint">Simulated traffic only. No packets leave this browser.</p></div><div className="inspector-block"><div className="section-heading"><span>SELECTED DEVICE</span><span className="small-muted">DETAILS</span></div>{selected ? <div className="selected-device"><span className={`device-icon large ${selected.kind}`}>{(() => { const Icon = deviceIcon(selected.kind); return <Icon size={20} />; })()}</span><div><strong>{selected.name}</strong><span>{selected.kind.toUpperCase()}</span></div></div> : <p className="empty-state">Select a device in the topology.</p>}{selected && <><div className="detail-list"><div><span>IPv4 address</span><strong>{selected.ip}</strong></div><div><span>Subnet</span><strong>255.255.255.0</strong></div><div><span>Interface</span><strong>eth0</strong></div><div><span>Connectivity</span><strong className="detail-ok"><span className="status-pip" /> Virtual</strong></div></div><div className="device-editor"><div className="section-heading"><span>EDIT PROPERTIES</span><span className="small-muted">LOCAL</span></div><label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="property-input" value={editName} maxLength={48} onChange={(event) => setEditName(event.target.value)} /><label className="field-label" htmlFor="device-ip">IPv4 address</label><input id="device-ip" className="property-input" value={editIp} inputMode="decimal" onChange={(event) => setEditIp(event.target.value)} /><div className="property-actions"><button className="secondary-button" onClick={saveSelectedDevice}><Save size={13} /> Save</button><button className="danger-button" onClick={deleteSelectedDevice}><Trash2 size={13} /> Remove</button></div></div></>}</div><div className="inspector-block"><div className="section-heading"><span>NETWORK LINKS</span><span className="small-muted">{lab.links.length} TOTAL</span></div>{lab.links.length ? lab.links.map((link) => <div className="link-editor-row" key={link.id}><span>{lab.devices.find((device) => device.id === link.from)?.name ?? link.from} <ArrowRight size={11} /> {lab.devices.find((device) => device.id === link.to)?.name ?? link.to}</span><button className="tiny-icon" title="Remove network link" onClick={() => deleteLink(link.id)}><X size={13} /></button></div>) : <p className="empty-state compact">No links. Select two devices and connect them.</p>}</div><div className="inspector-block"><div className="section-heading"><span>SIMULATED FIREWALL</span><span className="small-muted">DENY LIST</span></div><p className="field-hint">Block or allow traffic to a virtual device. Rules are saved with this lab.</p>{lab.devices.map((device) => <div className="firewall-rule-row" key={device.id}><div><strong>{device.name}</strong><small>{device.ip}</small></div><button className={lab.blockedDeviceIds.includes(device.id) ? "firewall-toggle blocked" : "firewall-toggle"} onClick={() => toggleFirewall(device.id)}>{lab.blockedDeviceIds.includes(device.id) ? "Blocked" : "Allowing"}</button></div>)}</div><div className="inspector-block"><div className="section-heading"><span>SUBNET CALCULATOR</span><span className="small-muted">CIDR</span></div><label className="field-label" htmlFor="subnet-cidr">IPv4 network / prefix</label><input id="subnet-cidr" className="property-input" value={subnetInput} onChange={(event) => setSubnetInput(event.target.value)} placeholder="192.168.1.0/24" />{subnet ? <div className="detail-list subnet-results"><div><span>Network</span><strong>{subnet.network}/{subnet.prefix}</strong></div><div><span>Netmask</span><strong>{subnet.netmask}</strong></div><div><span>Broadcast</span><strong>{subnet.broadcast}</strong></div><div><span>Usable hosts</span><strong>{subnet.usableHosts.toLocaleString()}</strong></div><div><span>Host range</span><strong>{subnet.firstHost} – {subnet.lastHost}</strong></div></div> : <p className="field-hint">Enter a valid IPv4 CIDR such as 10.0.0.0/24.</p>}</div><div className="inspector-block help-block"><span className="help-icon"><Command size={16} /></span><div><strong>Build, then observe.</strong><p>Add virtual devices, connect them, and run a ping. Every result appears in the traffic monitor.</p></div></div></> : <div className="packet-list"><div className="section-heading"><span>EVENT LOG</span><button className="text-button" onClick={() => setEvents([])}>Clear</button></div><div className="filter-row"><button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>All</button><button className={filter === "delivered" ? "selected" : ""} onClick={() => setFilter("delivered")}>Delivered</button><button className={filter === "dropped" ? "selected" : ""} onClick={() => setFilter("dropped")}>Dropped</button></div>{visibleEvents.length ? visibleEvents.map((event) => <article className="packet-event" key={event.id}><div className="event-top"><span className={event.status === "delivered" ? "event-status success" : "event-status failure"}>{event.status === "delivered" ? <Check size={12} /> : <X size={12} />}{event.status}</span><span>{event.protocol}</span></div><div className="event-route"><span>{event.source}</span><ArrowRight size={13} /><span>{event.destination}</span></div><p>{event.message}</p><time>{new Date(event.time).toLocaleTimeString()}</time></article>) : <div className="empty-state"><Activity size={23} /><strong>No packets yet</strong><span>Run a simulation to inspect network traffic.</span></div>}</div>}
+            {activeTab === "topology" ? <><div className="inspector-block"><div className="section-heading"><span>SIMULATION CONTROL</span><span className="small-muted">ICMP</span></div><label className="field-label" htmlFor="source-select">Source device</label><select id="source-select" value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><label className="field-label" htmlFor="destination-select">Destination device</label><select id="destination-select" value={selectedDestination} onChange={(event) => setSelectedDestination(event.target.value)}>{lab.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}</select><button className="run-button" onClick={() => runPing()}><Play size={15} fill="currentColor" /> Run ping simulation</button><p className="field-hint">Simulated traffic only. No packets leave this browser.</p></div><div className="inspector-block"><div className="section-heading"><span>SELECTED DEVICE</span><span className="small-muted">DETAILS</span></div>{selected ? <div className="selected-device"><span className={`device-icon large ${selected.kind}`}>{(() => { const Icon = deviceIcon(selected.kind); return <Icon size={20} />; })()}</span><div><strong>{selected.name}</strong><span>{selected.kind.toUpperCase()}</span></div></div> : <p className="empty-state">Select a device in the topology.</p>}{selected && <><div className="detail-list"><div><span>IPv4 address</span><strong>{selected.ip}</strong></div><div><span>Subnet</span><strong>255.255.255.0</strong></div><div><span>Interface</span><strong>eth0</strong></div><div><span>Connectivity</span><strong className="detail-ok"><span className="status-pip" /> Virtual</strong></div></div><div className="device-editor"><div className="section-heading"><span>EDIT PROPERTIES</span><span className="small-muted">LOCAL</span></div><label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="property-input" value={editName} maxLength={48} onChange={(event) => setEditName(event.target.value)} /><label className="field-label" htmlFor="device-ip">IPv4 address</label><input id="device-ip" className="property-input" value={editIp} inputMode="decimal" onChange={(event) => setEditIp(event.target.value)} /><div className="property-actions"><button className="secondary-button" onClick={saveSelectedDevice}><Save size={13} /> Save</button><button className="danger-button" onClick={deleteSelectedDevice}><Trash2 size={13} /> Remove</button></div></div></>}</div><div className="inspector-block"><div className="section-heading"><span>NETWORK LINKS</span><span className="small-muted">{lab.links.length} TOTAL</span></div>{lab.links.length ? lab.links.map((link) => <div className="link-editor-row" key={link.id}><span>{lab.devices.find((device) => device.id === link.from)?.name ?? link.from} <ArrowRight size={11} /> {lab.devices.find((device) => device.id === link.to)?.name ?? link.to}</span><button className="tiny-icon" title="Remove network link" aria-label={`Remove link ${link.id}`} onClick={() => deleteLink(link.id)}><X size={13} /></button></div>) : <p className="empty-state compact">No links. Select two devices and connect them.</p>}</div><div className="inspector-block"><div className="section-heading"><span>SIMULATED FIREWALL</span><span className="small-muted">DENY LIST</span></div><p className="field-hint">Block or allow traffic to a virtual device. Rules are saved with this lab.</p>{lab.devices.map((device) => <div className="firewall-rule-row" key={device.id}><div><strong>{device.name}</strong><small>{device.ip}</small></div><button className={lab.blockedDeviceIds.includes(device.id) ? "firewall-toggle blocked" : "firewall-toggle"} onClick={() => toggleFirewall(device.id)}>{lab.blockedDeviceIds.includes(device.id) ? "Blocked" : "Allowing"}</button></div>)}</div><div className="inspector-block"><div className="section-heading"><span>SUBNET CALCULATOR</span><span className="small-muted">CIDR</span></div><label className="field-label" htmlFor="subnet-cidr">IPv4 network / prefix</label><input id="subnet-cidr" className="property-input" value={subnetInput} onChange={(event) => setSubnetInput(event.target.value)} placeholder="192.168.1.0/24" />{subnet ? <div className="detail-list subnet-results"><div><span>Network</span><strong>{subnet.network}/{subnet.prefix}</strong></div><div><span>Netmask</span><strong>{subnet.netmask}</strong></div><div><span>Broadcast</span><strong>{subnet.broadcast}</strong></div><div><span>Usable hosts</span><strong>{subnet.usableHosts.toLocaleString()}</strong></div><div><span>Host range</span><strong>{subnet.firstHost} – {subnet.lastHost}</strong></div></div> : <p className="field-hint">Enter a valid IPv4 CIDR such as 10.0.0.0/24.</p>}</div><div className="inspector-block help-block"><span className="help-icon"><Command size={16} /></span><div><strong>Build, then observe.</strong><p>Add virtual devices, connect them, and run a ping. Every result appears in the traffic monitor.</p></div></div></> : <div className="packet-list"><div className="section-heading"><span>EVENT LOG</span><button className="text-button" onClick={() => setEvents([])}>Clear</button></div><div className="filter-row"><button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>All</button><button className={filter === "delivered" ? "selected" : ""} onClick={() => setFilter("delivered")}>Delivered</button><button className={filter === "dropped" ? "selected" : ""} onClick={() => setFilter("dropped")}>Dropped</button></div>{visibleEvents.length ? visibleEvents.map((event) => <article className="packet-event" key={event.id}><div className="event-top"><span className={event.status === "delivered" ? "event-status success" : "event-status failure"}>{event.status === "delivered" ? <Check size={12} /> : <X size={12} />}{event.status}</span><span>{event.protocol}</span></div><div className="event-route"><span>{event.source}</span><ArrowRight size={13} /><span>{event.destination}</span></div><p>{event.message}</p><time>{new Date(event.time).toLocaleTimeString()}</time></article>) : <div className="empty-state"><Activity size={23} /><strong>No packets yet</strong><span>Run a simulation to inspect network traffic.</span></div>}</div>}
           </div>
           <div className="inspector-footer"><span><span className="status-pip" /> {notice}</span></div>
         </aside>

@@ -80,6 +80,11 @@ export interface PingResult {
   output: string[];
 }
 
+function createEventId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") return `evt-${globalThis.crypto.randomUUID()}`;
+  return `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+}
+
 export function simulatePing(
   devices: LabDevice[],
   links: LabLink[],
@@ -99,7 +104,7 @@ export function simulatePing(
     const message = "Source and destination are the same device.";
     return {
       success: true,
-      event: { id: `evt-${sequence}`, time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "delivered", message },
+      event: { id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "delivered", message },
       output: [`PING ${destination.ip} from ${source.ip}`, "Reply from local interface: 0.2 ms", "1 packet transmitted, 1 received."]
     };
   }
@@ -108,7 +113,7 @@ export function simulatePing(
     const message = "Blocked by simulated firewall policy for " + destination.name + ".";
     return {
       success: false,
-      event: { id: "evt-" + sequence, time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "dropped", message },
+      event: { id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip, protocol: "ICMP", status: "dropped", message },
       output: ["PING " + destination.ip + " from " + source.ip, "Firewall policy denied the simulated packet.", "1 packet transmitted, 0 received, policy drop."]
     };
   }
@@ -121,7 +126,7 @@ export function simulatePing(
   return {
     success: reachable,
     event: {
-      id: `evt-${sequence}`,
+      id: createEventId(),
       time: new Date().toISOString(),
       source: source.ip,
       destination: destination.ip,
@@ -136,32 +141,47 @@ export function simulatePing(
 }
 
 export function validateLab(value: unknown): LabSnapshot {
-  if (!value || typeof value !== "object") throw new Error("Lab file must contain a JSON object.");
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Lab file must contain a JSON object.");
+  }
   const candidate = value as Partial<LabSnapshot>;
   if (candidate.version !== 1 || !Array.isArray(candidate.devices) || !Array.isArray(candidate.links)) {
     throw new Error("Unsupported lab format. Expected PacketLab version 1.");
   }
+  if (candidate.devices.length > 200) {
+    throw new Error("Lab may contain at most 200 devices.");
+  }
 
   const ids = new Set<string>();
+  const ips = new Set<string>();
   for (const device of candidate.devices) {
-    if (!device || typeof device.id !== "string" || typeof device.name !== "string" ||
+    if (!device || typeof device.id !== "string" || device.id.length > 64 ||
+        typeof device.name !== "string" || device.name.length > 64 ||
         !["workstation", "router", "server"].includes(String(device.kind)) ||
         typeof device.ip !== "string" || !isValidIPv4(device.ip) ||
         !Number.isFinite(device.x) || !Number.isFinite(device.y) || device.x < 0 || device.x > 100 || device.y < 0 || device.y > 100) {
       throw new Error("Lab contains an invalid device.");
     }
     if (ids.has(device.id)) throw new Error("Lab contains duplicate device IDs.");
+    if (ips.has(device.ip)) throw new Error("Lab contains duplicate device IP addresses.");
     ids.add(device.id);
+    ips.add(device.ip);
   }
 
   const linkIds = new Set<string>();
+  const connections = new Set<string>();
   for (const link of candidate.links) {
-    if (!link || typeof link.id !== "string" || typeof link.from !== "string" ||
-        typeof link.to !== "string" || link.from === link.to ||
+    if (!link || typeof link.id !== "string" || link.id.length > 64 ||
+        typeof link.from !== "string" || typeof link.to !== "string" || link.from === link.to ||
         !ids.has(link.from) || !ids.has(link.to) || linkIds.has(link.id)) {
       throw new Error("Lab contains an invalid link.");
     }
+    const connectionKey = [link.from, link.to].sort().join("\\0");
+    if (connections.has(connectionKey)) {
+      throw new Error("Lab contains duplicate or reversed-duplicate links.");
+    }
     linkIds.add(link.id);
+    connections.add(connectionKey);
   }
 
   const blockedDeviceIds = candidate.blockedDeviceIds ?? [];
@@ -169,9 +189,15 @@ export function validateLab(value: unknown): LabSnapshot {
       new Set(blockedDeviceIds).size !== blockedDeviceIds.length) {
     throw new Error("Lab contains an invalid firewall rule.");
   }
-  return { version: 1, devices: candidate.devices, links: candidate.links, blockedDeviceIds };
+  return {
+    version: 1,
+    devices: candidate.devices.map((device) => ({
+      id: device.id, name: device.name, kind: device.kind, ip: device.ip, x: device.x, y: device.y
+    })),
+    links: candidate.links.map((link) => ({ id: link.id, from: link.from, to: link.to })),
+    blockedDeviceIds: [...blockedDeviceIds]
+  };
 }
-
 export function findPath(devices: LabDevice[], links: LabLink[], sourceId: string, destinationId: string): string[] | null {
   const ids = new Set(devices.map((device) => device.id));
   if (!ids.has(sourceId) || !ids.has(destinationId)) return null;
