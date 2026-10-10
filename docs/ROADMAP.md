@@ -13,23 +13,26 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Offline app-shell caching for reopening after an online visit
 - [x] Initial domain tests, dependency audit, and CI workflow
 - [x] GitHub Pages deployment workflow and first verified deployment
-- [ ] Add browser-level regression tests and accessibility audit
+- [x] Add Playwright browser-level regression and offline startup tests (awaiting first green CI run)
+- [ ] Complete accessibility audit
 - [ ] Add storage migrations and autosave recovery tests
 
 ## Phase 1 — Network fundamentals
 
-- [ ] Device inspector and editable labels/IP configuration
-- [ ] Drag-and-drop topology editing with keyboard alternatives
-- [ ] Subnet calculator, CIDR helpers, and duplicate-IP warnings
-- [ ] Routing tables and hop-by-hop packet path visualization
-- [ ] Simulated DNS and HTTP services
+- [x] Device inspector and editable labels/IP configuration
+- [x] Drag-and-drop topology editing (keyboard alternative still needed)
+- [x] Subnet calculator, CIDR helpers, and duplicate-IP protection in the device editor
+- [x] Shortest-path route discovery
+- [x] Simulated DNS and HTTP services
+- [ ] Routing tables and hop-by-hop packet-path visualization
 - [ ] Firewall rules, allow/deny policy, and rule-hit counters
-- [ ] Scenario save/load with schema versioning
+- [x] Scenario save/load through validated local JSON import/export
 
 ## Phase 2 — Guided learning
 
 - [ ] Structured beginner-to-advanced learning paths
-- [ ] Blue-team missions, evidence collection, and scoring
+- [x] First guided connectivity exercise with locally derived objective progress
+- [ ] More blue-team missions, evidence collection, and scoring
 - [ ] Event timeline, filters, and exportable reports
 - [ ] Explainable simulations and deterministic scenario replay
 - [ ] Progress stored locally with reset/export controls
