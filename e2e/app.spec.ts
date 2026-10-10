@@ -196,5 +196,5 @@ test("firewall deny rules drop simulated traffic, count hits, and can be lifted"
   await page.getByRole("button", { name: /Packets/ }).click();
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   await page.getByRole("button", { name: /Overview/ }).click();
-  await expect(page.getByText("0 logged hits", { exact: true })).toBeVisible();
+  await expect(page.locator(".firewall-hit-count")).toHaveText(["0 logged hits", "0 logged hits", "0 logged hits"]);
 });;
