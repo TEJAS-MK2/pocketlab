@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   type DeviceKind, type LabDevice, type LabPacketEvent, type LabSnapshot,
-  MAX_LAB_DEVICES, MAX_LAB_LINKS, calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab
+  MAX_LAB_DEVICES, MAX_LAB_LINKS, calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatePing, starterLab, validateLab
 } from "./engine/network";
 
 const STORAGE_KEY = "packetlab.workspace.v1";
@@ -128,7 +128,7 @@ export default function App() {
     if (!selected) return;
     const name = editName.trim();
     const ip = editIp.trim();
-    if (!name || name.length > 48) { setNotice("Device names must be 1–48 characters."); return; }
+    if (!isValidDeviceName(name, 48)) { setNotice("Device names must be 1–48 characters and cannot contain control characters."); return; }
     if (!isValidIPv4(ip)) { setNotice("Enter a valid canonical IPv4 address."); return; }
     if (lab.devices.some((device) => device.id !== selected.id && device.ip === ip)) { setNotice("Another device already uses that IPv4 address."); return; }
     persist({ ...lab, devices: lab.devices.map((device) => device.id === selected.id ? { ...device, name, ip } : device) });

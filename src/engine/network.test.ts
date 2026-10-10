@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { calculateSubnet, connectedComponent, findPath, isValidIPv4, simulatePing, starterLab, validateLab } from "./network";
+import { calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatePing, starterLab, validateLab } from "./network";
+
+describe("device name validation", () => {
+  it("accepts useful names and rejects blank, overlong, and control-character names", () => {
+    expect(isValidDeviceName("WORKSTATION-01")).toBe(true);
+    expect(isValidDeviceName("  WORKSTATION-01  ")).toBe(true);
+    expect(isValidDeviceName("  ")).toBe(false);
+    expect(isValidDeviceName("N".repeat(49), 48)).toBe(false);
+    expect(isValidDeviceName(["HOST", "INJECTED"].join(String.fromCharCode(10)))).toBe(false);
+    expect(isValidDeviceName("HOST" + String.fromCharCode(127))).toBe(false);
+    expect(isValidDeviceName(null)).toBe(false);
+  });
+});
 
 describe("IPv4 validation", () => {
   it("accepts canonical IPv4 addresses", () => {

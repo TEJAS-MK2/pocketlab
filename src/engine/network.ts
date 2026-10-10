@@ -49,6 +49,11 @@ export const starterLab: LabSnapshot = {
   blockedDeviceIds: []
 };
 
+export function isValidDeviceName(value: unknown, maxLength = 64): value is string {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength &&
+    !/[\u0000-\u001f\u007f]/.test(value);
+}
+
 export function isValidIPv4(value: string): boolean {
   if (typeof value !== "string") return false;
   const parts = value.split(".");
@@ -164,7 +169,7 @@ export function validateLab(value: unknown): LabSnapshot {
   const ips = new Set<string>();
   for (const device of candidate.devices) {
     if (!device || typeof device.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(device.id) ||
-        typeof device.name !== "string" || device.name.trim().length === 0 || device.name.length > 64 || /[\u0000-\u001f\u007f]/.test(device.name) ||
+        !isValidDeviceName(device.name, 64) ||
         !["workstation", "router", "server"].includes(String(device.kind)) ||
         typeof device.ip !== "string" || !isValidIPv4(device.ip) ||
         !Number.isFinite(device.x) || !Number.isFinite(device.y) || device.x < 0 || device.x > 100 || device.y < 0 || device.y > 100) {
