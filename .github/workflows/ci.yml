@@ -28,6 +28,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Audit dependencies (blocking)
+        run: npm audit --audit-level=high
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
@@ -40,21 +42,3 @@ jobs:
         run: npm run build
       - name: Verify offline shell artifacts
         run: test -f dist/sw.js && test -f dist/manifest.webmanifest && test -f dist/packetlab-icon.svg && test -f dist/packetlab-icon-192.png && test -f dist/packetlab-icon-512.png && test -f dist/packetlab-icon-maskable-512.png && test -f dist/apple-touch-icon.png && node --check dist/sw.js
-
-
-  audit:
-    name: Dependency audit (informational)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
