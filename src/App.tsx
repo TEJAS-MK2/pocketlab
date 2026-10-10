@@ -582,7 +582,7 @@ export default function App() {
                 } else runPing("ws-01", "srv-01");
               }}>{missionFirewallDone ? "Check again" : "Run check"}</button></div>
             </div>
-            <div className="mission-footer">{missionProgress === 3 ? "Exercise complete — you checked connectivity, route discovery, and subnet capacity." : "Hint: use the route and subnet tools to explain why a packet can or cannot reach its destination."}</div>
+            <div className="mission-footer">{missionProgress === 4 ? "Exercise complete — you checked connectivity, route discovery, subnet capacity, and firewall response." : "Hint: use the route, subnet, and firewall tools to explain why a packet can or cannot reach its destination."}</div>
             <div className="mission-progress-actions">
               <button className="text-button" onClick={exportMissionProgress}>Export progress</button>
               <button className="text-button" onClick={resetMissionProgress}>Reset progress</button>
