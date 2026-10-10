@@ -60,7 +60,7 @@ The first visit requires a network connection. After the service worker installs
 
 ## Deployment
 
-The deployment workflow is at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It typechecks, tests, builds the static site, and deploys it to GitHub Pages; dependency auditing runs separately as an informational, non-gating job. Enable Pages manually under **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. The workflow status and published URL should be checked after every release.
+The deployment workflow is at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It audits dependencies, typechecks, runs unit and Playwright browser/offline tests, builds the static site, verifies offline-shell artifacts, and deploys to GitHub Pages only when the required build checks pass. High-severity dependency audit findings block both CI and deployment; review and resolve them rather than treating the audit as informational. Enable Pages manually under **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. After a release, verify the exact commit's workflow result and the published URL.
 
 The repository includes `public/packetlab-icon-192.png` (192×192), `public/packetlab-icon-512.png` (512×512), `public/packetlab-icon-maskable-512.png` (512×512 with safe-area padding), and `public/apple-touch-icon.png` (180×180).
 
