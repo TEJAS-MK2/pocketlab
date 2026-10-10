@@ -154,3 +154,65 @@ export function validateLab(value: unknown): LabSnapshot {
 
   return { version: 1, devices: candidate.devices, links: candidate.links };
 }
+
+export function findPath(devices: LabDevice[], links: LabLink[], sourceId: string, destinationId: string): string[] | null {
+  const ids = new Set(devices.map((device) => device.id));
+  if (!ids.has(sourceId) || !ids.has(destinationId)) return null;
+  const previous = new Map<string, string | null>([[sourceId, null]]);
+  const queue = [sourceId];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (current === destinationId) break;
+    for (const link of links) {
+      const next = link.from === current ? link.to : link.to === current ? link.from : null;
+      if (next && ids.has(next) && !previous.has(next)) {
+        previous.set(next, current);
+        queue.push(next);
+      }
+    }
+  }
+  if (!previous.has(destinationId)) return null;
+  const path: string[] = [];
+  let current: string | null = destinationId;
+  while (current !== null) {
+    path.unshift(current);
+    current = previous.get(current) ?? null;
+  }
+  return path;
+}
+
+export interface SubnetResult {
+  network: string;
+  netmask: string;
+  broadcast: string;
+  firstHost: string;
+  lastHost: string;
+  usableHosts: number;
+  prefix: number;
+}
+
+function intToIPv4(value: number): string {
+  return [24, 16, 8, 0].map((shift) => (value >>> shift) & 255).join(".");
+}
+
+export function calculateSubnet(input: string): SubnetResult | null {
+  const match = /^(\\d{1,3}(?:\\.\\d{1,3}){3})\\/(\\d{1,2})$/.exec(input.trim());
+  if (!match || !isValidIPv4(match[1])) return null;
+  const prefix = Number(match[2]);
+  if (prefix < 0 || prefix > 32) return null;
+  const octets = match[1].split(".").map(Number);
+  const address = (((octets[0] * 256 + octets[1]) * 256 + octets[2]) * 256 + octets[3]) >>> 0;
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  const network = (address & mask) >>> 0;
+  const broadcast = (network | (~mask >>> 0)) >>> 0;
+  const usableHosts = prefix === 32 ? 1 : prefix === 31 ? 2 : Math.max(0, broadcast - network - 1);
+  return {
+    network: intToIPv4(network),
+    netmask: intToIPv4(mask),
+    broadcast: intToIPv4(broadcast),
+    firstHost: prefix >= 31 ? intToIPv4(network) : intToIPv4(network + 1),
+    lastHost: prefix >= 31 ? intToIPv4(broadcast) : intToIPv4(broadcast - 1),
+    usableHosts,
+    prefix
+  };
+}
