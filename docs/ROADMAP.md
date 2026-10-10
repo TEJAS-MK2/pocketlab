@@ -33,7 +33,8 @@ This roadmap describes the intended platform from day one. It is a plan, not a c
 - [x] Simulated directly-connected routing table and hop-by-hop path highlighting
 - [x] Local firewall deny/allow policy that blocks simulated ping and HTTP requests to protected devices
 - [x] Deterministic ping TTL decremented only by intermediate virtual routers; latency remains an explicitly estimated simulation value
-- [x] Explainable ICMP event decision log for endpoint validation, path selection, simulated ARP-style neighbor resolution, router forwarding, firewall decisions, and delivery/drop outcomes
+- [x] Explainable ICMP event decision log for endpoint validation, path selection, hop-ordered simulated ARP-style neighbor resolution, router forwarding, firewall decisions, and delivery/drop outcomes
+- [x] Enforce TTL expiry at the router that decrements the TTL to zero, with the observed path ending at the drop point
 - [ ] Configurable per-interface MAC/IP/mask state, real subnet-aware next-hop selection, and explicit static/default routes
 - [x] Firewall hit counts derived from retained local packet events
 - [ ] More advanced policy matching

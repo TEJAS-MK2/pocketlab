@@ -189,40 +189,56 @@ export function simulatePing(
   }
 
   const devicesById = new Map(devices.map((device) => [device.id, device]));
-  const trace: LabPacketHop[] = route.flatMap((id) => {
+  const plannedTrace: LabPacketHop[] = route.flatMap((id) => {
     const device = devicesById.get(id);
     return device ? [{ deviceId: device.id, name: device.name, ip: device.ip }] : [];
   });
-
+  const trace: LabPacketHop[] = [sourceHop];
   const steps: LabPacketStep[] = [
     packetStep("step-1", "endpoint", "pass", `Validated source ${source.ip} and destination ${destination.ip}.`, source),
-    packetStep("step-2", "route", "pass", `Selected a ${route.length - 1}-link path: ${trace.map((hop) => hop.name).join(" -> ")}.`, source)
+    packetStep("step-2", "route", "pass", `Selected a ${route.length - 1}-link path: ${plannedTrace.map((hop) => hop.name).join(" -> ")}.`, source)
   ];
+  let ttl = 64;
 
-  // Each edge models a virtual neighbor adjacency. MAC-like values are illustrative, not hardware addresses.
+  // Model each hop in order. The MAC-like values are illustrative and are not hardware addresses.
   for (let index = 0; index < route.length - 1; index += 1) {
     const current = devicesById.get(route[index]);
     const next = devicesById.get(route[index + 1]);
     if (!current || !next) continue;
+
+    // A transit router decrements TTL when forwarding, not when a packet merely crosses a link.
+    if (index > 0 && current.kind === "router") {
+      const before = ttl;
+      ttl = Math.max(0, ttl - 1);
+      steps.push(packetStep(
+        `step-${steps.length + 1}`, "forward", ttl > 0 ? "pass" : "blocked",
+        `Router forwarding decision at ${current.name}: TTL ${before} -> ${ttl}.`,
+        current
+      ));
+      if (ttl === 0) {
+        const message = `Time to live exceeded at ${current.name}; the packet was dropped before forwarding.`;
+        steps.push(packetStep(`step-${steps.length + 1}`, "drop", "blocked", message, current));
+        return {
+          success: false,
+          event: {
+            id: createEventId(), time: new Date().toISOString(), source: source.ip, destination: destination.ip,
+            protocol: "ICMP", status: "dropped", message, trace, steps
+          },
+          output: [
+            `PING ${destination.ip} from ${source.ip}`,
+            `Time to live exceeded at ${current.name}.`,
+            "1 packet transmitted, 0 received, 100% packet loss."
+          ]
+        };
+      }
+    }
+
     steps.push(packetStep(
       `step-${steps.length + 1}`, "neighbor", "info",
       `Simulated ARP lookup: ${current.name} resolved next-hop ${next.ip} to illustrative address ${simulatedMacAddress(next.id)}.`,
       current
     ));
-  }
-
-  const transitRouters = route.slice(1, -1)
-    .map((id) => devicesById.get(id))
-    .filter((device): device is LabDevice => device?.kind === "router");
-  let ttl = 64;
-  for (const router of transitRouters) {
-    const before = ttl;
-    ttl = Math.max(0, ttl - 1);
-    steps.push(packetStep(
-      `step-${steps.length + 1}`, "forward", ttl > 0 ? "pass" : "blocked",
-      `Router forwarding decision at ${router.name}: TTL ${before} -> ${ttl}.`,
-      router
-    ));
+    trace.push({ deviceId: next.id, name: next.name, ip: next.ip });
   }
 
   if (blockedDeviceIds.includes(destination.id)) {

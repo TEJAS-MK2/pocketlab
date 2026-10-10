@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatedMacAddress, simulatePing, starterLab, validateLab } from "./network";
+import { calculateSubnet, connectedComponent, findPath, isValidDeviceName, isValidIPv4, simulatedMacAddress, simulatePing, starterLab, validateLab, type LabDevice, type LabLink } from "./network";
 
 describe("device name validation", () => {
   it("accepts useful names and rejects blank, overlong, and control-character names", () => {
@@ -64,6 +64,30 @@ describe("network connectivity simulation", () => {
     expect(simulatedMacAddress("rt-01")).toBe(simulatedMacAddress("rt-01"));
     expect(simulatedMacAddress("rt-01")).toMatch(/^02:50:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$/);
     expect(simulatedMacAddress("rt-01")).not.toBe(simulatedMacAddress("srv-01"));
+  });
+
+  it("drops packets when the TTL expires at a transit router", () => {
+    const source: LabDevice = { id: "source", name: "SOURCE", kind: "workstation", ip: "10.1.0.1", x: 0, y: 50 };
+    const routers: LabDevice[] = Array.from({ length: 64 }, (_, index) => ({
+      id: `router-${index + 1}`,
+      name: `ROUTER-${index + 1}`,
+      kind: "router",
+      ip: `10.0.0.${index + 1}`,
+      x: (index + 1) * 100 / 65,
+      y: 50
+    }));
+    const destination: LabDevice = { id: "destination", name: "DESTINATION", kind: "server", ip: "10.2.0.1", x: 100, y: 50 };
+    const devices: LabDevice[] = [source, ...routers, destination];
+    const links: LabLink[] = devices.slice(0, -1).map((device, index) => ({
+      id: `link-${index + 1}`, from: device.id, to: devices[index + 1].id
+    }));
+    const result = simulatePing(devices, links, source.id, destination.id);
+
+    expect(result.success).toBe(false);
+    expect(result.event.status).toBe("dropped");
+    expect(result.event.message).toContain("Time to live exceeded at ROUTER-64");
+    expect(result.event.trace.at(-1)?.name).toBe("ROUTER-64");
+    expect(result.output.join("\\n")).toContain("100% packet loss");
   });
 
   it("records firewall decisions in the event history", () => {
